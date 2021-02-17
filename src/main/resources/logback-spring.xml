@@ -2,7 +2,6 @@
 <Configuration status="info" monitorInterval="30">
     <Properties>
         <Property name="LOG_FORMAT">%d{yyyy-MM-dd HH:mm:ss} %p %m%n</Property>
-        <Property name="BASE_DIR">/Users/madplay/Desktop/bootdemo</Property>
     </Properties>
 
     <Appenders>
@@ -13,18 +12,12 @@
                      fileName="indexer.log"
                      filePattern="indexer.%d{yyyy-MM-dd}.log">
             <PatternLayout pattern="${LOG_FORMAT}"/>
-            <Policies>
-                <TimeBasedTriggeringPolicy />
-            </Policies>
         </RollingFile>
 
         <RollingFile name="File-Error"
                      fileName="indexer-error.log"
                      filePattern="indexer-error.%d{yyyy-MM-dd}.log">
             <PatternLayout pattern="${LOG_FORMAT}"/>
-            <Policies>
-                <TimeBasedTriggeringPolicy />
-            </Policies>
         </RollingFile>
     </Appenders>
 
@@ -32,9 +25,7 @@
         <Root level="info">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File" />
-        </Root>
-        <Danawa level="error">
             <AppenderRef ref="File-Error" />
-        </Danawa>
+        </Root>
     </Loggers>
 </Configuration>

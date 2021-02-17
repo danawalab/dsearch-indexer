@@ -1,12 +1,12 @@
 server:
   port: 9350
-logging:
-  level:
-    root: INFO
-    org.springframework: ERROR
-    com.danawa.fastcatx: INFO
-  file:
-    name: output.log
+#logging:
+#  level:
+#    root: INFO
+#    org.springframework: ERROR
+#    com.danawa.fastcatx: INFO
+#  file:
+#    name: output.log
 
 elasticsearch:
   thread: 50
@@ -21,3 +21,4 @@ elasticsearch:
     - host: es2.danawa.com
       port: 9200
       scheme: http
+
