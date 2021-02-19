@@ -154,9 +154,9 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <includeSystemScope>true</includeSystemScope>
-                </configuration>
+<!--                <configuration>-->
+<!--                    <includeSystemScope>true</includeSystemScope>-->
+<!--                </configuration>-->
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -165,45 +165,6 @@
                 <configuration>
                     <skipTests>true</skipTests>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-install-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>install-Transformation altibase lib</id>
-                        <phase>clean</phase>
-                        <configuration>
-                            <file>lib/Altibase.jar</file>
-                            <repositoryLayout>default</repositoryLayout>
-                            <groupId>Altibase</groupId>
-                            <artifactId>Altibase</artifactId>
-                            <version>1.0.0</version>
-                            <packaging>jar</packaging>
-                            <generatePom>true</generatePom>
-                        </configuration>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                    </execution>
-
-                    <execution>
-                        <id>install-Transformation indexer lib</id>
-                        <phase>clean</phase>
-                        <configuration>
-                            <file>lib/danawa-product-1.1.1.jar</file>
-                            <repositoryLayout>default</repositoryLayout>
-                            <groupId>com.danawa.fastcatx</groupId>
-                            <artifactId>indexer</artifactId>
-                            <version>1.1.1</version>
-                            <packaging>jar</packaging>
-                            <generatePom>true</generatePom>
-                        </configuration>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>

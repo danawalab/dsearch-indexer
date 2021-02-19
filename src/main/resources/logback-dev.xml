@@ -14,18 +14,18 @@
             <PatternLayout pattern="${LOG_FORMAT}"/>
         </RollingFile>
 
-        <RollingFile name="File-Error"
-                     fileName="indexer-error.log"
-                     filePattern="indexer-error.%d{yyyy-MM-dd}.log">
-            <PatternLayout pattern="${LOG_FORMAT}"/>
-        </RollingFile>
+<!--        <RollingFile name="File-Error"-->
+<!--                     fileName="indexer-error.log"-->
+<!--                     filePattern="indexer-error.%d{yyyy-MM-dd}.log">-->
+<!--            <PatternLayout pattern="${LOG_FORMAT}"/>-->
+<!--        </RollingFile>-->
     </Appenders>
 
     <Loggers>
         <Root level="info">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File" />
-            <AppenderRef ref="File-Error" />
+<!--            <AppenderRef ref="File-Error" />-->
         </Root>
     </Loggers>
 </Configuration>

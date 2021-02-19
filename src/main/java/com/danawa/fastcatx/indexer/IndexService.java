@@ -4,6 +4,7 @@ import com.danawa.fastcatx.indexer.entity.Job;
 import org.apache.http.HttpHost;
 import org.apache.http.conn.ConnectionKeepAliveStrategy;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -11,6 +12,7 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.client.HttpAsyncResponseConsumerFactory;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
@@ -19,6 +21,7 @@ import org.elasticsearch.client.enrich.StatsResponse;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.GetIndexRequest;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.rest.RestStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -34,10 +37,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class IndexService {
 
     private static Logger logger = LoggerFactory.getLogger(IndexService.class);
-    
+
     final int SOCKET_TIMEOUT = 10 * 60 * 1000;
     final int CONNECTION_TIMEOUT = 40 * 1000;
-    
+
     // 몇건 색인중인지.
     private int count;
 
@@ -54,7 +57,7 @@ public class IndexService {
         this.host = host;
         this.port = port;
         this.scheme = scheme;
-        logger.info("host : {} , port : {}, scheme : {} ", host, port,scheme);
+        logger.info("host : {} , port : {}, scheme : {} ", host, port, scheme);
     }
 
     public int getCount() {
@@ -66,7 +69,7 @@ public class IndexService {
             GetIndexRequest request = new GetIndexRequest(index);
             return client.indices().exists(request, RequestOptions.DEFAULT);
 
-        }catch (IOException e) {
+        } catch (IOException e) {
             logger.error("", e);
             throw e;
         }
@@ -101,6 +104,7 @@ public class IndexService {
     public void index(Ingester ingester, String index, Integer bulkSize, Filter filter, String pipeLine) throws IOException, StopSignalException {
         index(ingester, index, bulkSize, filter, null, pipeLine);
     }
+
     public void index(Ingester ingester, String index, Integer bulkSize, Filter filter, Job job, String pipeLine) throws IOException, StopSignalException {
         try (
                 RestHighLevelClient client = new RestHighLevelClient(RestClient.builder(new HttpHost(host, port, scheme))
@@ -116,7 +120,7 @@ public class IndexService {
             long start = System.currentTimeMillis();
             BulkRequest request = new BulkRequest();
             long time = System.nanoTime();
-            try{
+            try {
 
                 logger.info("index 시작");
 
@@ -127,28 +131,27 @@ public class IndexService {
                     }
 
 
-
                     Map<String, Object> record = ingester.next();
                     if (filter != null && record != null && record.size() > 0) {
                         record = filter.filter(record);
                     }
                     //logger.info("{}", record);
-                    if(record != null && record.size() >0) {
+                    if (record != null && record.size() > 0) {
                         count++;
 
                         IndexRequest indexRequest = new IndexRequest(index).source(record, XContentType.JSON);
 
-                        if(record.get("ID") != null) {
+                        if (record.get("ID") != null) {
                             id = record.get("ID").toString();
-                        }else if(record.get("id") != null) {
+                        } else if (record.get("id") != null) {
                             id = record.get("id").toString();
                         }
 
-                        if(id.length() > 0) {
+                        if (id.length() > 0) {
                             indexRequest.id(id);
                         }
 
-                        if(pipeLine.length() > 0) {
+                        if (pipeLine.length() > 0) {
                             indexRequest.setPipeline(pipeLine);
                         }
 
@@ -156,8 +159,65 @@ public class IndexService {
                     }
 
                     if (count % bulkSize == 0) {
+                        // 기존 소스
+//                        BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
+//                        checkResponse(bulkResponse);
+
+                        // 동기 방식
+                        boolean doRetry = false;
+                        BulkRequest retryBulkRequest = new BulkRequest();
+                        List<DocWriteRequest<?>> requestList = request.requests();
+
                         BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
-                        checkResponse(bulkResponse); // 추가
+                        if (bulkResponse.hasFailures()) {
+                            // bulkResponse에 에러가 있다면
+                            // retry 1회 시도
+                            doRetry = true;
+                            BulkItemResponse[] bulkItemResponses = bulkResponse.getItems();
+
+                            for (int i = 0; i < bulkItemResponses.length; i++) {
+                                BulkItemResponse bulkItemResponse = bulkItemResponses[i];
+
+                                if (bulkItemResponse.isFailed()) {
+                                    BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
+
+                                    // write queue reject 이슈 코드 = ( 429 )
+                                    if (failure.getStatus() == RestStatus.fromCode(429)) {
+                                        logger.error("write queue rejected!! >> {}", failure);
+
+                                        // retry bulk request에 추가
+                                        // bulkRequest에 대한 response의 순서가 동일한 샤드에 있다면 보장.
+                                        // https://discuss.elastic.co/t/is-the-execution-order-guaranteed-in-a-single-bulk-request/100412
+
+                                        retryBulkRequest.add(requestList.get(i));
+                                    } else {
+                                        logger.error("Doc index error >> {}", failure);
+                                    }
+                                }
+                            }
+                        }
+
+                        // 재시도 로직 - 1회만 재시도.
+                        if (doRetry) {
+                            bulkResponse = client.bulk(retryBulkRequest, RequestOptions.DEFAULT);
+                            if (bulkResponse.hasFailures()) {
+                                BulkItemResponse[] responses = bulkResponse.getItems();
+                                for (int i = 0; i < responses.length; i++) {
+                                    BulkItemResponse bulkItemResponse = responses[i];
+
+                                    if (bulkItemResponse.isFailed()) {
+                                        BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
+
+                                        if (failure.getStatus() == RestStatus.fromCode(429)) {
+                                            logger.error("retryed, but write queue rejected!! >> {}", failure);
+                                        } else {
+                                            logger.error("retryed, but Doc index error >> {}", failure);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         logger.debug("bulk! {}", count);
                         request = new BulkRequest();
                     }
@@ -165,7 +225,7 @@ public class IndexService {
                     if (count % 10000 == 0) {
                         logger.info("index: [{}] {} ROWS FLUSHED! in {}ms", index, count, (System.nanoTime() - time) / 1000000);
                     }
-                   //logger.info("{}",count);
+                    //logger.info("{}",count);
                 }
 
                 if (request.estimatedSizeInBytes() > 0) {
@@ -175,12 +235,12 @@ public class IndexService {
                     logger.debug("Final bulk! {}", count);
                 }
             } catch (StopSignalException e) {
-              throw e;
-            } catch(Exception e) {
-                logger.info("{}",e);
+                throw e;
+            } catch (Exception e) {
+                logger.info("{}", e);
                 StackTraceElement[] exception = e.getStackTrace();
-                logger.error("[Exception] : request id : {}" , id);
-                for(StackTraceElement element : exception) {
+                logger.error("[Exception] : request id : {}", id);
+                for (StackTraceElement element : exception) {
                     e.printStackTrace();
                     logger.error("[Exception] : " + element.toString());
                     continue;
@@ -193,8 +253,9 @@ public class IndexService {
     }
 
     public void elasticDynamicIndex(Ingester ingester, String index, Filter filter, Integer bulkSize, Integer sleepTime) throws IOException, StopSignalException, InterruptedException {
-        elasticDynamicIndex(ingester,index, filter, bulkSize, sleepTime, null);
+        elasticDynamicIndex(ingester, index, filter, bulkSize, sleepTime, null);
     }
+
     public void elasticDynamicIndex(Ingester ingester, String index, Filter filter, Integer bulkSize, Integer sleepTime, Job job) throws IOException, StopSignalException, InterruptedException {
         try (RestHighLevelClient client = new RestHighLevelClient(RestClient.builder(new HttpHost(host, port, scheme)))) {
             count = 0;
@@ -224,7 +285,7 @@ public class IndexService {
             };
 
 
-            try{
+            try {
                 while (ingester.hasNext()) {
                     if (job != null && job.getStopSignal() != null && job.getStopSignal()) {
                         logger.info("Stop Signal");
@@ -241,7 +302,7 @@ public class IndexService {
                     }
 
                     //입력된 인덱스만큼 순차적으로 색인 API 호출
-                    if(record.size() > 0) {
+                    if (record.size() > 0) {
 
                         request.add(new IndexRequest(indexArr[count % indexArr.length]).source(record, XContentType.JSON));
                         //IndexRequest request  = new IndexRequest(indexArr[count % indexArr.length]).source(record, XContentType.JSON);
@@ -262,7 +323,7 @@ public class IndexService {
                         request = new BulkRequest();
 
                         //sleepTime 만큼 대기
-                        if(sleepTime != null) {
+                        if (sleepTime != null) {
                             Thread.sleep(sleepTime);
                         }
                     }
@@ -282,9 +343,9 @@ public class IndexService {
 
             } catch (StopSignalException e) {
                 throw e;
-            } catch(Exception e) {
+            } catch (Exception e) {
                 StackTraceElement[] exception = e.getStackTrace();
-                for(StackTraceElement element : exception) {
+                for (StackTraceElement element : exception) {
                     logger.error("[Exception] : " + element.toString());
                 }
                 throw e;
@@ -296,7 +357,7 @@ public class IndexService {
     }
 
 
-    public void fastcatDynamicIndex(Ingester ingester, String index, Filter filter,Integer bulkSize, Integer sleepTime) throws IOException {
+    public void fastcatDynamicIndex(Ingester ingester, String index, Filter filter, Integer bulkSize, Integer sleepTime) throws IOException {
 
         WebClient webClient = WebClient.create();
         Utils utils = new Utils();
@@ -312,7 +373,7 @@ public class IndexService {
 
         long time = System.nanoTime();
 
-        try{
+        try {
             while (ingester.hasNext()) {
                 count++;
 
@@ -327,9 +388,9 @@ public class IndexService {
                 }
 
                 //bulkSize의 1/10만큼 볼륨에 동적색인
-                if (count % (bulkSize/10) == 0) {
+                if (count % (bulkSize / 10) == 0) {
 
-                    String uri = String.format("http://%s:%s/service/index?collectionId=%s",host,port,indexArr[cnt]);
+                    String uri = String.format("http://%s:%s/service/index?collectionId=%s", host, port, indexArr[cnt]);
                     //logger.info("bulk! {}", count);
 
 
@@ -339,12 +400,12 @@ public class IndexService {
                             .retrieve()
                             .bodyToMono(String.class);
 
-                    result.subscribe( s-> {
+                    result.subscribe(s -> {
                         //logger.info("record");
                     });
 
                     cnt++;
-                    if(cnt == indexArr.length) {
+                    if (cnt == indexArr.length) {
                         cnt = 0;
                     }
 
@@ -354,7 +415,7 @@ public class IndexService {
 
                 //bulkSize마다 ThreadSleep
                 if (count % bulkSize == 0) {
-                    if(sleepTime != null) {
+                    if (sleepTime != null) {
                         logger.info("bulk! {}, sleep : {}", count, sleepTime);
                         Thread.sleep(sleepTime);
                     }
@@ -367,7 +428,7 @@ public class IndexService {
 
             if (indexList.size() > 0) {
 
-                String uri = String.format("http://%s:%s/service/index?collectionId=%s",host,port,indexArr[cnt]);
+                String uri = String.format("http://%s:%s/service/index?collectionId=%s", host, port, indexArr[cnt]);
                 //나머지..
                 Mono<String> result = webClient.post()
                         .uri(uri)
@@ -375,19 +436,18 @@ public class IndexService {
                         .retrieve()
                         .bodyToMono(String.class);
 
-                result.subscribe( s-> {
+                result.subscribe(s -> {
                     //logger.info("record");
                 });
                 logger.debug("Final bulk! {}", count);
             }
 
-        }catch(Exception e) {
+        } catch (Exception e) {
             StackTraceElement[] exception = e.getStackTrace();
-            for(StackTraceElement element : exception) {
+            for (StackTraceElement element : exception) {
                 logger.error("[Exception] : " + element.toString());
             }
         }
-
 
 
         long totalTime = System.currentTimeMillis() - start;
@@ -397,19 +457,147 @@ public class IndexService {
     class Worker implements Callable {
         private BlockingQueue queue;
         private RestHighLevelClient client;
+        private int sleepTime = 1000;
+        private boolean isStop = false;
+
         public Worker(BlockingQueue queue) {
             this.queue = queue;
-            this.client =new RestHighLevelClient(RestClient.builder(new HttpHost(host, port, scheme))
+            this.client = new RestHighLevelClient(RestClient.builder(new HttpHost(host, port, scheme))
                     .setRequestConfigCallback(requestConfigBuilder -> requestConfigBuilder.setConnectTimeout(CONNECTION_TIMEOUT)
                             .setSocketTimeout(SOCKET_TIMEOUT))
                     .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
                             .setKeepAliveStrategy(getConnectionKeepAliveStrategy())));
         }
+        private void retry(BulkRequest bulkRequest) {
+
+//            비동기 write queue reject 구현 및 색인
+//            client.bulkAsync(bulkRequest, RequestOptions.DEFAULT, new ActionListener<BulkResponse>() {
+//                @Override
+//                public void onResponse(BulkResponse bulkResponse) {
+//                    boolean doRetry = false;
+//                    BulkRequest retryBulkRequest = new BulkRequest();
+//                    List<DocWriteRequest<?>> requests = bulkRequest.requests();
+//                    if (bulkResponse.hasFailures()) {
+//                        doRetry = true;
+//                        BulkItemResponse[] bulkItemResponses = bulkResponse.getItems();
+//                        for (int i = 0; i < bulkItemResponses.length; i++) {
+//                            BulkItemResponse bulkItemResponse = bulkItemResponses[i];
+//
+//                            if (bulkItemResponse.isFailed()) {
+//                                BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
+//
+//                                if (failure.getStatus() == RestStatus.fromCode(429)) {
+//                                    // RestStatus.TOO_MANY_REQUESTS == RestStatus.fromCode(429)
+//                                    logger.error("write queue rejected!! >> {}", failure);
+//                                    retryBulkRequest.add(requests.get(i));
+//                                } else {
+//                                    logger.error("Doc index error >> {}", failure);
+//                                }
+//                            }
+//                        }
+//                    }
+//
+//                    if (doRetry) {
+//                        BulkResponse retryBulkResponse = null;
+//                        try {
+//                            retryBulkResponse = client.bulk(retryBulkRequest, RequestOptions.DEFAULT);
+//                        } catch (IOException e) {
+//                            e.printStackTrace();
+//                        }
+//
+//                        if (retryBulkResponse.hasFailures()) {
+//                            BulkItemResponse[] responses = retryBulkResponse.getItems();
+//                            for (int i = 0; i < responses.length; i++) {
+//                                BulkItemResponse bulkItemResponse = responses[i];
+//
+//                                if (bulkItemResponse.isFailed()) {
+//                                    BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
+//
+//                                    if (failure.getStatus() == RestStatus.fromCode(429)) {
+//                                        // RestStatus.TOO_MANY_REQUESTS == RestStatus.fromCode(429)
+//                                        logger.error("retryed, but write queue rejected!! >> {}", failure);
+//                                    } else {
+//                                        logger.error("retryed, but Doc index error >> {}", failure);
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
+//
+//                @Override
+//                public void onFailure(Exception e) {
+//                    logger.error("Doc index error >> {}", e);
+//                }
+//            });
+
+            // 동기 방식
+            boolean doRetry = false;
+            BulkRequest retryBulkRequest = new BulkRequest();
+            try {
+                List<DocWriteRequest<?>> requests = bulkRequest.requests();
+
+                BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
+                if (bulkResponse.hasFailures()) {
+                    // bulkResponse에 에러가 있다면
+                    // retry 1회 시도
+
+                    doRetry = true;
+                    BulkItemResponse[] bulkItemResponses = bulkResponse.getItems();
+
+                    for (int i = 0; i < bulkItemResponses.length; i++) {
+                        BulkItemResponse bulkItemResponse = bulkItemResponses[i];
+
+                        if (bulkItemResponse.isFailed()) {
+                            BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
+
+                            // write queue reject 이슈 코드 = ( 429 )
+                            if (failure.getStatus() == RestStatus.fromCode(429)) {
+                                logger.error("write queue rejected!! >> {}", failure);
+
+                                // retry bulk request에 추가
+                                // bulkRequest에 대한 response의 순서가 동일한 샤드에 있다면 보장.
+                                // https://discuss.elastic.co/t/is-the-execution-order-guaranteed-in-a-single-bulk-request/100412
+
+                                retryBulkRequest.add(requests.get(i));
+                            } else {
+                                logger.error("Doc index error >> {}", failure);
+                            }
+                        }
+                    }
+                }
+
+                // 재시도 로직 - 1회만 재시도.
+                if (doRetry) {
+                    bulkResponse = client.bulk(retryBulkRequest, RequestOptions.DEFAULT);
+                    if (bulkResponse.hasFailures()) {
+                        BulkItemResponse[] responses = bulkResponse.getItems();
+                        for (int i = 0; i < responses.length; i++) {
+                            BulkItemResponse bulkItemResponse = responses[i];
+
+                            if (bulkItemResponse.isFailed()) {
+                                BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
+
+                                if (failure.getStatus() == RestStatus.fromCode(429)) {
+                                    logger.error("retryed, but write queue rejected!! >> {}", failure);
+                                } else {
+                                    logger.error("retryed, but Doc index error >> {}", failure);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                logger.error("{}", e);
+            }
+        }
+
+
         @Override
         public Object call() {
 
-            try{
-                while(true) {
+            try {
+                while (true) {
                     Object o = queue.take();
                     if (o instanceof String) {
                         //종료.
@@ -417,13 +605,11 @@ public class IndexService {
                         break;
                     }
                     BulkRequest request = (BulkRequest) o;
-                    BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
-                    checkResponse(bulkResponse);
-
+                    retry(request);
 //                logger.debug("bulk! {}", count);
                 }
-            }catch (Throwable e) {
-                logger.error("indexParallel : {}" , e);
+            } catch (Throwable e) {
+                logger.error("indexParallel : {}", e);
             }
 
             // 기존 소스
@@ -443,9 +629,11 @@ public class IndexService {
             return null;
         }
     }
+
     public void indexParallel(Ingester ingester, String index, Integer bulkSize, Filter filter, int threadSize, String pipeLine) throws IOException, StopSignalException {
         indexParallel(ingester, index, bulkSize, filter, threadSize, null, pipeLine);
     }
+
     public void indexParallel(Ingester ingester, String index, Integer bulkSize, Filter filter, int threadSize, Job job, String pipeLine) throws IOException, StopSignalException {
         ExecutorService executorService = Executors.newFixedThreadPool(threadSize);
 
@@ -483,17 +671,17 @@ public class IndexService {
                     IndexRequest indexRequest = new IndexRequest(index).source(record, XContentType.JSON);
 
                     //_id 자동생성이 아닌 고정 필드로 색인
-                    if(record.get("ID") != null) {
+                    if (record.get("ID") != null) {
                         id = record.get("ID").toString();
-                    }else if(record.get("id") != null) {
+                    } else if (record.get("id") != null) {
                         id = record.get("id").toString();
                     }
 
-                    if(id.length() > 0) {
+                    if (id.length() > 0) {
                         indexRequest.id(id);
                     }
 
-                    if(pipeLine.length() > 0) {
+                    if (pipeLine.length() > 0) {
                         indexRequest.setPipeline(pipeLine);
                     }
 
@@ -558,7 +746,7 @@ public class IndexService {
             executorService.shutdown();
 
             // 만약, 쓰레드가 정상적으로 종료 되지 않는다면,
-            if(!executorService.isShutdown()){
+            if (!executorService.isShutdown()) {
                 // 쓰레드 강제 종료
                 logger.info("{} thread shutdown now!", index);
                 executorService.shutdownNow();
