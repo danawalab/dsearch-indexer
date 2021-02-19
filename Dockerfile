@@ -16,7 +16,7 @@ COPY lib/Altibase.jar .
 EXPOSE 9350
 EXPOSE 8080
 EXPOSE 9100
-COPY target/* .
-#COPY target/indexer-1.1.0.jar indexer.jar
-#
-CMD ["java", "-classpath", "indexer-1.1.0.jar:Altibase.jar", "org.springframework.boot.loader.JarLauncher"]
+
+
+#COPY target/* .
+#CMD ["java", "-classpath", "indexer-1.1.0.jar:Altibase.jar", "org.springframework.boot.loader.JarLauncher"]
