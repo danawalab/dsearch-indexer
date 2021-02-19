@@ -243,215 +243,12 @@ public class IndexService {
                 for (StackTraceElement element : exception) {
                     e.printStackTrace();
                     logger.error("[Exception] : " + element.toString());
-                    continue;
                 }
             }
 
             long totalTime = System.currentTimeMillis() - start;
             logger.info("index:[{}] Flush Finished! doc[{}] elapsed[{}m]", index, count, totalTime / 1000 / 60);
         }
-    }
-
-    public void elasticDynamicIndex(Ingester ingester, String index, Filter filter, Integer bulkSize, Integer sleepTime) throws IOException, StopSignalException, InterruptedException {
-        elasticDynamicIndex(ingester, index, filter, bulkSize, sleepTime, null);
-    }
-
-    public void elasticDynamicIndex(Ingester ingester, String index, Filter filter, Integer bulkSize, Integer sleepTime, Job job) throws IOException, StopSignalException, InterruptedException {
-        try (RestHighLevelClient client = new RestHighLevelClient(RestClient.builder(new HttpHost(host, port, scheme)))) {
-            count = 0;
-            long start = System.currentTimeMillis();
-
-            AtomicInteger counter = new AtomicInteger();
-
-            BulkRequest request = new BulkRequest();
-
-            int cnt = 0;
-            String[] indexArr = index.split(",");
-
-            long time = System.nanoTime();
-            ActionListener<IndexResponse> listener;
-
-            listener = new ActionListener<IndexResponse>() {
-                @Override
-                public void onResponse(IndexResponse indexResponse) {
-                    counter.decrementAndGet();
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    counter.decrementAndGet();
-                    logger.error("[DynamicIndex] : " + e.getMessage());
-                }
-            };
-
-
-            try {
-                while (ingester.hasNext()) {
-                    if (job != null && job.getStopSignal() != null && job.getStopSignal()) {
-                        logger.info("Stop Signal");
-                        throw new StopSignalException();
-                    }
-//                if (counter.get() >= bulkSize) {
-//                    Thread.sleep(20);
-//                    continue;
-//                }
-
-                    Map<String, Object> record = ingester.next();
-                    if (filter != null && record.size() > 0) {
-                        record = filter.filter(record);
-                    }
-
-                    //입력된 인덱스만큼 순차적으로 색인 API 호출
-                    if (record.size() > 0) {
-
-                        request.add(new IndexRequest(indexArr[count % indexArr.length]).source(record, XContentType.JSON));
-                        //IndexRequest request  = new IndexRequest(indexArr[count % indexArr.length]).source(record, XContentType.JSON);
-                        //client.indexAsync(request, RequestOptions.DEFAULT, listener);
-                        //counter.incrementAndGet();
-
-//                    cnt++;
-//                    if(cnt == indexArr.length) {dmd
-//                        cnt = 0;
-//                    }
-                    }
-
-
-                    count++;
-                    if (count % bulkSize == 0) {
-                        BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
-                        logger.info("bulk! {}, sleep : {}", count, sleepTime);
-                        request = new BulkRequest();
-
-                        //sleepTime 만큼 대기
-                        if (sleepTime != null) {
-                            Thread.sleep(sleepTime);
-                        }
-                    }
-
-                    if (count % 10000 == 0) {
-                        //logger.info("{} DynamicIndex API Call ROWS FLUSHED! in {}ms. async_counter[{}]", count, (System.nanoTime() - time) / 1000000, counter.get());
-                        logger.info("index: [{}] {} DynamicIndex API Call ROWS FLUSHED! in {}ms. SleepTime[{}]", index, count, (System.nanoTime() - time) / 1000000, sleepTime);
-                    }
-                }
-
-                if (request.estimatedSizeInBytes() > 0) {
-                    //나머지..
-                    BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
-                    checkResponse(bulkResponse);
-                    logger.debug("Final bulk! {}", count);
-                }
-
-            } catch (StopSignalException e) {
-                throw e;
-            } catch (Exception e) {
-                StackTraceElement[] exception = e.getStackTrace();
-                for (StackTraceElement element : exception) {
-                    logger.error("[Exception] : " + element.toString());
-                }
-                throw e;
-            }
-
-            long totalTime = System.currentTimeMillis() - start;
-            logger.info("index:[{}] Flush Finished! doc[{}] elapsed[{}m]", index, count, totalTime / 1000 / 60);
-        }
-    }
-
-
-    public void fastcatDynamicIndex(Ingester ingester, String index, Filter filter, Integer bulkSize, Integer sleepTime) throws IOException {
-
-        WebClient webClient = WebClient.create();
-        Utils utils = new Utils();
-
-        count = 0;
-        List<Map<String, Object>> indexList = new ArrayList<Map<String, Object>>();
-        long start = System.currentTimeMillis();
-        // IndexRequest request = new IndexRequest();
-
-        int cnt = 0;
-
-        String[] indexArr = index.split(",");
-
-        long time = System.nanoTime();
-
-        try {
-            while (ingester.hasNext()) {
-                count++;
-
-                Map<String, Object> record = ingester.next();
-                if (filter != null) {
-                    record = filter.filter(record);
-                }
-
-                //필터적용 후 List에 적재
-                if (record.size() > 0) {
-                    indexList.add(record);
-                }
-
-                //bulkSize의 1/10만큼 볼륨에 동적색인
-                if (count % (bulkSize / 10) == 0) {
-
-                    String uri = String.format("http://%s:%s/service/index?collectionId=%s", host, port, indexArr[cnt]);
-                    //logger.info("bulk! {}", count);
-
-
-                    Mono<String> result = webClient.post()
-                            .uri(uri)
-                            .bodyValue(utils.makeJsonData(indexList))
-                            .retrieve()
-                            .bodyToMono(String.class);
-
-                    result.subscribe(s -> {
-                        //logger.info("record");
-                    });
-
-                    cnt++;
-                    if (cnt == indexArr.length) {
-                        cnt = 0;
-                    }
-
-                    //ArrayList 초기화
-                    indexList = new ArrayList<>();
-                }
-
-                //bulkSize마다 ThreadSleep
-                if (count % bulkSize == 0) {
-                    if (sleepTime != null) {
-                        logger.info("bulk! {}, sleep : {}", count, sleepTime);
-                        Thread.sleep(sleepTime);
-                    }
-                }
-
-                if (count % 10000 == 0) {
-                    logger.info("index: [{}] {} DynamicIndex API Call ROWS FLUSHED! in {}ms", index, count, (System.nanoTime() - time) / 1000000);
-                }
-            }
-
-            if (indexList.size() > 0) {
-
-                String uri = String.format("http://%s:%s/service/index?collectionId=%s", host, port, indexArr[cnt]);
-                //나머지..
-                Mono<String> result = webClient.post()
-                        .uri(uri)
-                        .bodyValue(utils.makeJsonData(indexList))
-                        .retrieve()
-                        .bodyToMono(String.class);
-
-                result.subscribe(s -> {
-                    //logger.info("record");
-                });
-                logger.debug("Final bulk! {}", count);
-            }
-
-        } catch (Exception e) {
-            StackTraceElement[] exception = e.getStackTrace();
-            for (StackTraceElement element : exception) {
-                logger.error("[Exception] : " + element.toString());
-            }
-        }
-
-
-        long totalTime = System.currentTimeMillis() - start;
-        logger.info("index:[{}] Flush Finished! doc[{}] elapsed[{}m]", index, count, totalTime / 1000 / 60);
     }
 
     class Worker implements Callable {
@@ -459,9 +256,11 @@ public class IndexService {
         private RestHighLevelClient client;
         private int sleepTime = 1000;
         private boolean isStop = false;
+        private String index;
 
-        public Worker(BlockingQueue queue) {
+        public Worker(BlockingQueue queue, String index) {
             this.queue = queue;
+            this.index = index;
             this.client = new RestHighLevelClient(RestClient.builder(new HttpHost(host, port, scheme))
                     .setRequestConfigCallback(requestConfigBuilder -> requestConfigBuilder.setConnectTimeout(CONNECTION_TIMEOUT)
                             .setSocketTimeout(SOCKET_TIMEOUT))
@@ -541,7 +340,7 @@ public class IndexService {
                 if (bulkResponse.hasFailures()) {
                     // bulkResponse에 에러가 있다면
                     // retry 1회 시도
-
+                    logger.error("BulkRequest Error : {}", bulkResponse.buildFailureMessage());
                     doRetry = true;
                     BulkItemResponse[] bulkItemResponses = bulkResponse.getItems();
 
@@ -587,8 +386,11 @@ public class IndexService {
                         }
                     }
                 }
+
+                logger.debug("Bulk Success : index:{} - count:{}, - elapsed:{}", index, count, bulkResponse.getTook());
+
             } catch (Exception e) {
-                logger.error("{}", e);
+                logger.error("retry : {}", e);
             }
         }
 
@@ -601,11 +403,12 @@ public class IndexService {
                     Object o = queue.take();
                     if (o instanceof String) {
                         //종료.
-                        logger.info("Indexing Worker-{} got {}", Thread.currentThread().getId(), o);
+                        logger.info("Indexing Worker-{} index={} got {}", Thread.currentThread().getId(),index,o);
                         break;
                     }
                     BulkRequest request = (BulkRequest) o;
                     retry(request);
+                    logger.debug("remained queue : {}", queue.size());
 //                logger.debug("bulk! {}", count);
                 }
             } catch (Throwable e) {
@@ -641,7 +444,7 @@ public class IndexService {
         //여러 쓰레드가 작업큐를 공유한다.
         List<Future> list = new ArrayList<>();
         for (int i = 0; i < threadSize; i++) {
-            Worker w = new Worker(queue);
+            Worker w = new Worker(queue, index);
             list.add(executorService.submit(w));
         }
 
