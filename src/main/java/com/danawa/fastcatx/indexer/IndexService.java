@@ -494,6 +494,7 @@ public class IndexService {
 
                 if (count % bulkSize == 0) {
                     queue.put(request);
+
 //                    BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
 //                    logger.debug("bulk! {}", count);
 

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="debug" monitorInterval="30">
+    <Properties>
+        <Property name="LOG_FORMAT">%d{yyyy-MM-dd HH:mm:ss} %p %m%n</Property>
+    </Properties>
+
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT" follow="true">
+            <PatternLayout pattern="${LOG_FORMAT}"/>
+        </Console>
+        <RollingFile name="File"
+                     fileName="indexer.log"
+                     filePattern="indexer.%d{yyyy-MM-dd}.log">
+            <PatternLayout pattern="${LOG_FORMAT}"/>
+            <LevelRangeFilter minLevel="info" maxLevel="debug" onMatch="ACCEPT" onMismatch="DENY"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+            </Policies>
+        </RollingFile>
+
+        <RollingFile name="File-Error"
+                     fileName="indexer-error.log"
+                     filePattern="indexer-error.%d{yyyy-MM-dd}.log">
+            <PatternLayout pattern="${LOG_FORMAT}"/>
+            <LevelRangeFilter minLevel="ERROR" maxLevel="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+            </Policies>
+        </RollingFile>
+    </Appenders>
+
+    <Loggers>
+        <Root level="debug">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="File"/>
+            <AppenderRef ref="File-Error" />
+        </Root>
+
+        <Logger name="org.springframework" level="error" additivity="false">
+            <AppenderRef ref="File-Error" />
+        </Logger>
+
+        <Logger name="com.danawa.fastcatx" level="debug"  additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="File"/>
+            <AppenderRef ref="File-Error" />
+        </Logger>
+    </Loggers>
+</Configuration>
