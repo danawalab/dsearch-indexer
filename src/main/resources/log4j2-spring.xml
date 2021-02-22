@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="debug" monitorInterval="30">
     <Properties>
-        <Property name="LOG_FORMAT">%d{yyyy-MM-dd HH:mm:ss.SSSZ} %p %m%n</Property>
+        <Property name="LOG_FORMAT">%d{yyyy-MM-dd HH:mm:ss.SSS} [%p] %m%n</Property>
     </Properties>
 
     <Appenders>
@@ -12,7 +12,6 @@
                      fileName="indexerLog/indexer.log"
                      filePattern="indexerLog/indexer.%d{yyyy-MM-dd}.log">
             <PatternLayout pattern="${LOG_FORMAT}"/>
-            <LevelRangeFilter minLevel="INFO" maxLevel="DEBUG" onMatch="ACCEPT" onMismatch="DENY"/>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1"/>
             </Policies>
@@ -21,8 +20,8 @@
         <RollingFile name="File-Error"
                      fileName="indexerLog/indexer-error.log"
                      filePattern="indexerLog/indexer-error.%d{yyyy-MM-dd}.log">
-            <LevelRangeFilter minLevel="ERROR" maxLevel="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
             <PatternLayout pattern="${LOG_FORMAT}"/>
+            <LevelRangeFilter minLevel="ERROR" maxLevel="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1"/>
             </Policies>
@@ -30,17 +29,19 @@
     </Appenders>
 
     <Loggers>
-        <Root level="debug">
+        <Root level="DEBUG">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
             <AppenderRef ref="File-Error" />
         </Root>
 
-        <Logger name="org.springframework" level="error" additivity="false">
+        <Logger name="org.apache.http" level="ERROR" additivity="false" />
+        <Logger name="org.elasticsearch.client" level="ERROR" additivity="false" />
+        <Logger name="org.springframework" level="ERROR" additivity="false">
             <AppenderRef ref="File-Error" />
         </Logger>
 
-        <Logger name="com.danawa.fastcatx" level="debug"  additivity="false">
+        <Logger name="com.danawa.fastcatx" level="DEBUG"  additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
             <AppenderRef ref="File-Error" />

@@ -7,19 +7,12 @@ import com.github.fracpete.rsync4j.RSync;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.origin.SystemEnvironmentOrigin;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystems;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.WatchService;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class IngesterTest {
 

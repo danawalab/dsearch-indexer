@@ -268,68 +268,6 @@ public class IndexService {
                             .setKeepAliveStrategy(getConnectionKeepAliveStrategy())));
         }
         private void retry(BulkRequest bulkRequest) {
-
-//            비동기 write queue reject 구현 및 색인
-//            client.bulkAsync(bulkRequest, RequestOptions.DEFAULT, new ActionListener<BulkResponse>() {
-//                @Override
-//                public void onResponse(BulkResponse bulkResponse) {
-//                    boolean doRetry = false;
-//                    BulkRequest retryBulkRequest = new BulkRequest();
-//                    List<DocWriteRequest<?>> requests = bulkRequest.requests();
-//                    if (bulkResponse.hasFailures()) {
-//                        doRetry = true;
-//                        BulkItemResponse[] bulkItemResponses = bulkResponse.getItems();
-//                        for (int i = 0; i < bulkItemResponses.length; i++) {
-//                            BulkItemResponse bulkItemResponse = bulkItemResponses[i];
-//
-//                            if (bulkItemResponse.isFailed()) {
-//                                BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
-//
-//                                if (failure.getStatus() == RestStatus.fromCode(429)) {
-//                                    // RestStatus.TOO_MANY_REQUESTS == RestStatus.fromCode(429)
-//                                    logger.error("write queue rejected!! >> {}", failure);
-//                                    retryBulkRequest.add(requests.get(i));
-//                                } else {
-//                                    logger.error("Doc index error >> {}", failure);
-//                                }
-//                            }
-//                        }
-//                    }
-//
-//                    if (doRetry) {
-//                        BulkResponse retryBulkResponse = null;
-//                        try {
-//                            retryBulkResponse = client.bulk(retryBulkRequest, RequestOptions.DEFAULT);
-//                        } catch (IOException e) {
-//                            e.printStackTrace();
-//                        }
-//
-//                        if (retryBulkResponse.hasFailures()) {
-//                            BulkItemResponse[] responses = retryBulkResponse.getItems();
-//                            for (int i = 0; i < responses.length; i++) {
-//                                BulkItemResponse bulkItemResponse = responses[i];
-//
-//                                if (bulkItemResponse.isFailed()) {
-//                                    BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
-//
-//                                    if (failure.getStatus() == RestStatus.fromCode(429)) {
-//                                        // RestStatus.TOO_MANY_REQUESTS == RestStatus.fromCode(429)
-//                                        logger.error("retryed, but write queue rejected!! >> {}", failure);
-//                                    } else {
-//                                        logger.error("retryed, but Doc index error >> {}", failure);
-//                                    }
-//                                }
-//                            }
-//                        }
-//                    }
-//                }
-//
-//                @Override
-//                public void onFailure(Exception e) {
-//                    logger.error("Doc index error >> {}", e);
-//                }
-//            });
-
             // 동기 방식
             boolean doRetry = false;
             BulkRequest retryBulkRequest = new BulkRequest();

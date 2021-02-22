@@ -2,12 +2,19 @@ FROM dcr.danawa.io/alpine-k8s-java:8
 
 RUN yum -y update && yum install -y wget rsync
 
+#RUN groupadd -g 999 danawa
+#RUN useradd -r -u 999 -g danawa danawa
+
+RUN useradd danawa
+RUN usermod -aG wheel danawa
+USER danawa
+
+WORKDIR /app
+
 ENV PATH=$PATH:${JAVA_HOME}/bin
 ENV spring_logging_level=debug
 ENV LANG=ko_KR.euckr
 ENV VERSION=1.1.0
-
-WORKDIR /app
 
 COPY lib/Altibase.jar .
 
