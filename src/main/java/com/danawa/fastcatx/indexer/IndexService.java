@@ -168,6 +168,8 @@ public class IndexService {
                         BulkRequest retryBulkRequest = new BulkRequest();
                         logger.info("벌크 리퀘스트 !");
                         BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
+                        checkResponse(bulkResponse);
+
 //                        BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
 //                        if (bulkResponse.hasFailures()) {
 //                            // bulkResponse에 에러가 있다면
