@@ -165,9 +165,9 @@ public class IndexService {
 
                         // 동기 방식
                         boolean doRetry = false;
-                        BulkRequest retryBulkRequest = new BulkRequest();
                         List<DocWriteRequest<?>> requestList = request.requests();
-
+                        BulkRequest retryBulkRequest = new BulkRequest();
+                        logger.info("벌크 리퀘스트 !");
                         BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
                         if (bulkResponse.hasFailures()) {
                             // bulkResponse에 에러가 있다면
@@ -199,6 +199,7 @@ public class IndexService {
 
                         // 재시도 로직 - 1회만 재시도.
                         if (doRetry) {
+                            logger.info("벌크 리퀘스트 재시도 !");
                             bulkResponse = client.bulk(retryBulkRequest, RequestOptions.DEFAULT);
                             if (bulkResponse.hasFailures()) {
                                 BulkItemResponse[] responses = bulkResponse.getItems();
@@ -267,12 +268,13 @@ public class IndexService {
                     .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
                             .setKeepAliveStrategy(getConnectionKeepAliveStrategy())));
         }
+
         private void retry(BulkRequest bulkRequest) {
             // 동기 방식
             boolean doRetry = false;
-            BulkRequest retryBulkRequest = new BulkRequest();
             try {
                 List<DocWriteRequest<?>> requests = bulkRequest.requests();
+                BulkRequest retryBulkRequest = new BulkRequest();
 
                 BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
                 if (bulkResponse.hasFailures()) {
