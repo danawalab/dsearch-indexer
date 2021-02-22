@@ -5,8 +5,8 @@ logging:
     root: INFO
     org.springframework: ERROR
     com.danawa.fastcatx: INFO
-  file:
-    name: output.log
+#  file:
+#    name: output.log
 
 elasticsearch:
   thread: 50

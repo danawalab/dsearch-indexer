@@ -6,8 +6,8 @@ logging:
     root: INFO
     org.springframework: ERROR
     com.danawa.fastcatx: INFO
-  file:
-    name: output.log
+#  file:
+#    name: output.log
 
 elasticsearch:
   thread: 50
@@ -16,9 +16,9 @@ elasticsearch:
   connectionTimeout: 30000
   sockekTimeout: 300000
   nodes:
-    - host: localhost
+    - host: 192.168.1.123
       port: 9200
       scheme: http
-    - host: localhost
+    - host: 192.168.1.123
       port: 9200
       scheme: http

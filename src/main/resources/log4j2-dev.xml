@@ -9,8 +9,8 @@
             <PatternLayout pattern="${LOG_FORMAT}"/>
         </Console>
         <RollingFile name="File"
-                     fileName="indexer.log"
-                     filePattern="indexer.%d{yyyy-MM-dd}.log">
+                     fileName="indexerLog/indexer.log"
+                     filePattern="indexerLog/indexer.%d{yyyy-MM-dd}.log">
             <PatternLayout pattern="${LOG_FORMAT}"/>
             <LevelRangeFilter minLevel="info" maxLevel="debug" onMatch="ACCEPT" onMismatch="DENY"/>
             <Policies>
@@ -19,8 +19,8 @@
         </RollingFile>
 
         <RollingFile name="File-Error"
-                     fileName="indexer-error.log"
-                     filePattern="indexer-error.%d{yyyy-MM-dd}.log">
+                     fileName="indexerLog/indexer-error.log"
+                     filePattern="indexerLog/indexer-error.%d{yyyy-MM-dd}.log">
             <PatternLayout pattern="${LOG_FORMAT}"/>
             <LevelRangeFilter minLevel="ERROR" maxLevel="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
             <Policies>
