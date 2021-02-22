@@ -168,55 +168,56 @@ public class IndexService {
                         BulkRequest retryBulkRequest = new BulkRequest();
                         logger.info("벌크 리퀘스트 !");
                         BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
-                        if (bulkResponse.hasFailures()) {
-                            // bulkResponse에 에러가 있다면
-                            // retry 1회 시도
-                            doRetry = true;
-                            BulkItemResponse[] bulkItemResponses = bulkResponse.getItems();
-                            List<DocWriteRequest<?>> requestList = request.requests();
-                            for (int i = 0; i < bulkItemResponses.length; i++) {
-                                BulkItemResponse bulkItemResponse = bulkItemResponses[i];
-
-                                if (bulkItemResponse.isFailed()) {
-                                    BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
-
-                                    // write queue reject 이슈 코드 = ( 429 )
-                                    if (failure.getStatus() == RestStatus.fromCode(429)) {
-                                        logger.error("write queue rejected!! >> {}", failure);
-
-                                        // retry bulk request에 추가
-                                        // bulkRequest에 대한 response의 순서가 동일한 샤드에 있다면 보장.
-                                        // https://discuss.elastic.co/t/is-the-execution-order-guaranteed-in-a-single-bulk-request/100412
-
-                                        retryBulkRequest.add(requestList.get(i));
-                                    } else {
-                                        logger.error("Doc index error >> {}", failure);
-                                    }
-                                }
-                            }
-                        }
-
-                        // 재시도 로직 - 1회만 재시도.
-                        if (doRetry) {
-                            logger.info("벌크 리퀘스트 재시도 !");
-                            bulkResponse = client.bulk(retryBulkRequest, RequestOptions.DEFAULT);
-                            if (bulkResponse.hasFailures()) {
-                                BulkItemResponse[] responses = bulkResponse.getItems();
-                                for (int i = 0; i < responses.length; i++) {
-                                    BulkItemResponse bulkItemResponse = responses[i];
-
-                                    if (bulkItemResponse.isFailed()) {
-                                        BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
-
-                                        if (failure.getStatus() == RestStatus.fromCode(429)) {
-                                            logger.error("retryed, but write queue rejected!! >> {}", failure);
-                                        } else {
-                                            logger.error("retryed, but Doc index error >> {}", failure);
-                                        }
-                                    }
-                                }
-                            }
-                        }
+//                        BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
+//                        if (bulkResponse.hasFailures()) {
+//                            // bulkResponse에 에러가 있다면
+//                            // retry 1회 시도
+//                            doRetry = true;
+//                            BulkItemResponse[] bulkItemResponses = bulkResponse.getItems();
+//                            List<DocWriteRequest<?>> requestList = request.requests();
+//                            for (int i = 0; i < bulkItemResponses.length; i++) {
+//                                BulkItemResponse bulkItemResponse = bulkItemResponses[i];
+//
+//                                if (bulkItemResponse.isFailed()) {
+//                                    BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
+//
+//                                    // write queue reject 이슈 코드 = ( 429 )
+//                                    if (failure.getStatus() == RestStatus.fromCode(429)) {
+//                                        logger.error("write queue rejected!! >> {}", failure);
+//
+//                                        // retry bulk request에 추가
+//                                        // bulkRequest에 대한 response의 순서가 동일한 샤드에 있다면 보장.
+//                                        // https://discuss.elastic.co/t/is-the-execution-order-guaranteed-in-a-single-bulk-request/100412
+//
+//                                        retryBulkRequest.add(requestList.get(i));
+//                                    } else {
+//                                        logger.error("Doc index error >> {}", failure);
+//                                    }
+//                                }
+//                            }
+//                        }
+//
+//                        // 재시도 로직 - 1회만 재시도.
+//                        if (doRetry) {
+//                            logger.info("벌크 리퀘스트 재시도 !");
+//                            bulkResponse = client.bulk(retryBulkRequest, RequestOptions.DEFAULT);
+//                            if (bulkResponse.hasFailures()) {
+//                                BulkItemResponse[] responses = bulkResponse.getItems();
+//                                for (int i = 0; i < responses.length; i++) {
+//                                    BulkItemResponse bulkItemResponse = responses[i];
+//
+//                                    if (bulkItemResponse.isFailed()) {
+//                                        BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
+//
+//                                        if (failure.getStatus() == RestStatus.fromCode(429)) {
+//                                            logger.error("retryed, but write queue rejected!! >> {}", failure);
+//                                        } else {
+//                                            logger.error("retryed, but Doc index error >> {}", failure);
+//                                        }
+//                                    }
+//                                }
+//                            }
+//                        }
 
                         logger.debug("bulk! {}", count);
                         request = new BulkRequest();
@@ -346,6 +347,8 @@ public class IndexService {
                         break;
                     }
                     BulkRequest request = (BulkRequest) o;
+//                    BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
+//                    checkResponse(bulkResponse);
                     retry(request);
                     logger.debug("remained queue : {}", queue.size());
 //                logger.debug("bulk! {}", count);
