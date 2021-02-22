@@ -2,12 +2,9 @@ FROM dcr.danawa.io/alpine-k8s-java:8
 
 RUN yum -y update && yum install -y wget rsync
 
-#RUN groupadd -g 999 danawa
-#RUN useradd -r -u 999 -g danawa danawa
-
-RUN useradd danawa
-RUN usermod -aG wheel danawa
-USER danawa
+#RUN useradd danawa
+#RUN usermod -aG wheel danawa
+#USER danawa
 
 WORKDIR /app
 
@@ -18,13 +15,11 @@ ENV LANG=ko_KR.utf8
 ENV VERSION=1.1.0
 
 COPY lib/Altibase.jar .
-
 #COPY lib/danawa-product-1.1.1.jar .
 
 EXPOSE 9350
 EXPOSE 8080
 EXPOSE 9100
-
 
 #COPY target/* .
 #CMD ["java", "-classpath", "indexer-1.1.0.jar:Altibase.jar", "org.springframework.boot.loader.JarLauncher"]
