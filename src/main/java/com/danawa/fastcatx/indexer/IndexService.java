@@ -165,7 +165,6 @@ public class IndexService {
 
                         // 동기 방식
                         boolean doRetry = false;
-                        List<DocWriteRequest<?>> requestList = request.requests();
                         BulkRequest retryBulkRequest = new BulkRequest();
                         logger.info("벌크 리퀘스트 !");
                         BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
@@ -174,7 +173,7 @@ public class IndexService {
                             // retry 1회 시도
                             doRetry = true;
                             BulkItemResponse[] bulkItemResponses = bulkResponse.getItems();
-
+                            List<DocWriteRequest<?>> requestList = request.requests();
                             for (int i = 0; i < bulkItemResponses.length; i++) {
                                 BulkItemResponse bulkItemResponse = bulkItemResponses[i];
 
@@ -273,7 +272,6 @@ public class IndexService {
             // 동기 방식
             boolean doRetry = false;
             try {
-                List<DocWriteRequest<?>> requests = bulkRequest.requests();
                 BulkRequest retryBulkRequest = new BulkRequest();
 
                 BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
@@ -283,7 +281,8 @@ public class IndexService {
                     logger.error("BulkRequest Error : {}", bulkResponse.buildFailureMessage());
                     doRetry = true;
                     BulkItemResponse[] bulkItemResponses = bulkResponse.getItems();
-
+                    List<DocWriteRequest<?>> requests = bulkRequest.requests();
+                    logger.info("requests : {}", requests.size());
                     for (int i = 0; i < bulkItemResponses.length; i++) {
                         BulkItemResponse bulkItemResponse = bulkItemResponses[i];
 
