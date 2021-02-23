@@ -168,8 +168,6 @@ public class IndexService {
                         boolean doRetry = false;
                         BulkRequest retryBulkRequest = new BulkRequest();
                         logger.debug("bulk request !");
-//                        BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
-//                        checkResponse(bulkResponse);
 
                         BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
                         if (bulkResponse.hasFailures()) {
@@ -202,10 +200,11 @@ public class IndexService {
                         }
 
                         // 재시도 로직 - 1회만 재시도.
-                        if (doRetry) {
+                        if (doRetry && retryBulkRequest.requests().size() > 0) {
                             logger.debug("retry bulk request !  size : {}", retryBulkRequest.requests().size());
+
                             bulkResponse = client.bulk(retryBulkRequest, RequestOptions.DEFAULT);
-                            if (bulkResponse.hasFailures()) {
+                            if (bulkResponse.hasFailures() ) {
                                 BulkItemResponse[] responses = bulkResponse.getItems();
                                 for (int i = 0; i < responses.length; i++) {
                                     BulkItemResponse bulkItemResponse = responses[i];
@@ -311,7 +310,7 @@ public class IndexService {
                 }
 
                 // 재시도 로직 - 1회만 재시도.
-                if (doRetry) {
+                if (doRetry && retryBulkRequest.requests().size() > 0) {
                     bulkResponse = client.bulk(retryBulkRequest, RequestOptions.DEFAULT);
                     if (bulkResponse.hasFailures()) {
                         BulkItemResponse[] responses = bulkResponse.getItems();
