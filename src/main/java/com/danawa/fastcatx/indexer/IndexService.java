@@ -193,6 +193,7 @@ public class IndexService {
                                         // https://discuss.elastic.co/t/is-the-execution-order-guaranteed-in-a-single-bulk-request/100412
 
                                         retryBulkRequest.add(requestList.get(i));
+                                        logger.debug("retryBulkRequest add : {}", requestList.get(i));
                                     } else {
                                         logger.error("Doc index error >> {}", failure);
                                     }
@@ -202,7 +203,7 @@ public class IndexService {
 
                         // 재시도 로직 - 1회만 재시도.
                         if (doRetry) {
-                            logger.debug("retry bulk request !");
+                            logger.debug("retry bulk request !  size : {}", retryBulkRequest.requests().size());
                             bulkResponse = client.bulk(retryBulkRequest, RequestOptions.DEFAULT);
                             if (bulkResponse.hasFailures()) {
                                 BulkItemResponse[] responses = bulkResponse.getItems();
