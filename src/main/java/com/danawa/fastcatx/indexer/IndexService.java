@@ -200,9 +200,9 @@ public class IndexService {
                         }
 
                         // 재시도 로직 - 1회만 재시도.
+                        // 그러나, retryBulkRequest에 추가된 request가 없다면 에러 발생.
                         if (doRetry && retryBulkRequest.requests().size() > 0) {
                             logger.debug("retry bulk request !  size : {}", retryBulkRequest.requests().size());
-
                             bulkResponse = client.bulk(retryBulkRequest, RequestOptions.DEFAULT);
                             if (bulkResponse.hasFailures() ) {
                                 BulkItemResponse[] responses = bulkResponse.getItems();
@@ -238,6 +238,7 @@ public class IndexService {
                     checkResponse(bulkResponse);
                     logger.debug("Final bulk! {}", count);
                 }
+
             } catch (StopSignalException e) {
                 throw e;
             } catch (Exception e) {
