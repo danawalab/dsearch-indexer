@@ -11,9 +11,10 @@ WORKDIR /data/indexerLog
 
 RUN chmod 777 /data
 RUN chmod 777 /data/indexerLog
-
 RUN chown danawa /data
 RUN chown danawa /data/indexerLog
+RUN chgrp users /data
+RUN chgrp users /data/indexerLog
 
 USER danawa
 

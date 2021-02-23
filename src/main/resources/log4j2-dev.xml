@@ -29,7 +29,7 @@
     </Appenders>
 
     <Loggers>
-        <Root level="DEBUG">
+        <Root level="INFO">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
             <AppenderRef ref="File-Error" />
@@ -41,7 +41,7 @@
             <AppenderRef ref="File-Error" />
         </Logger>
 
-        <Logger name="com.danawa.fastcatx" level="DEBUG"  additivity="false">
+        <Logger name="com.danawa.fastcatx" level="INFO"  additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
             <AppenderRef ref="File-Error" />

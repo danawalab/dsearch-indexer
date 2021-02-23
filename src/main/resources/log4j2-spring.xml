@@ -29,19 +29,21 @@
     </Appenders>
 
     <Loggers>
-        <Root level="DEBUG">
+        <Root level="INFO">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
             <AppenderRef ref="File-Error" />
         </Root>
 
         <Logger name="org.apache.http" level="ERROR" additivity="false" />
+
         <Logger name="org.elasticsearch.client" level="ERROR" additivity="false" />
+
         <Logger name="org.springframework" level="ERROR" additivity="false">
             <AppenderRef ref="File-Error" />
         </Logger>
 
-        <Logger name="com.danawa.fastcatx" level="DEBUG"  additivity="false">
+        <Logger name="com.danawa.fastcatx" level="INFO"  additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
             <AppenderRef ref="File-Error" />
