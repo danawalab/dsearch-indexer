@@ -4,6 +4,17 @@ RUN yum -y update && yum install -y wget rsync
 
 RUN useradd danawa
 RUN usermod -aG wheel danawa
+
+# 로그 폴더 생성
+WORKDIR /data
+WORKDIR /data/indexerLog
+
+RUN chmod 777 /data
+RUN chmod 777 /data/indexerLog
+
+RUN chown danawa /data
+RUN chown danawa /data/indexerLog
+
 USER danawa
 
 WORKDIR /app
@@ -21,5 +32,5 @@ EXPOSE 9350
 EXPOSE 8080
 EXPOSE 9100
 
-#COPY target/* .
-#CMD ["java", "-classpath", "indexer-1.1.0.jar:Altibase.jar", "org.springframework.boot.loader.JarLauncher"]
+COPY target/* .
+CMD ["java", "-classpath", "indexer-1.1.0.jar:Altibase.jar", "org.springframework.boot.loader.JarLauncher"]
