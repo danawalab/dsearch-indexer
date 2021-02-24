@@ -93,7 +93,6 @@ public class IndexJobRunner implements Runnable {
             } catch (ClassCastException e) {
                 indexSettings = new HashMap<>();
             }
-            logger.debug("index: {}", index);
             /**
              * file기반 인제스터 설정
              */

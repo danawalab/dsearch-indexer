@@ -89,7 +89,7 @@ public class KonanToJsonConverter implements FileFilter {
                                 if (key.equals("")) {
                                     logger.error("ERROR >> {}:{}", key, value);
                                 }
-                                logger.debug("{} > {}", key, value);
+//                                logger.debug("{} > {}", key, value);
                                 generator.writeStringField(key, value);
                             }
                             key = mat.group(1);
