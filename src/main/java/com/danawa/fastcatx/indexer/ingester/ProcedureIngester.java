@@ -88,10 +88,17 @@ public class ProcedureIngester extends FileIngester {
                     if(sb.toString().contains(startStr) && sb.toString().contains(endStr)) {
                         logger.debug("sb : {}", sb.toString());
 
-                        if(dumpFormat.equals("konan")){
-                            record = gson.fromJson(Utils.convertKonanToNdJson(sb.toString()), entryType);
-                        }else if(dumpFormat.equals("ndjson")){
-                            record = gson.fromJson(sb.toString(), entryType);
+                        //2개 이상 productCode가 있을 시
+                        if(sb.toString().indexOf(startStr) != sb.toString().lastIndexOf(startStr)){
+                            logger.info("duplicate [%productCode%], skip");
+                        }else if(sb.toString().indexOf(endStr) != sb.toString().lastIndexOf(endStr)){
+                            logger.info("duplicate [%modifyDate%], skip");
+                        }else{
+                            if(dumpFormat.equals("konan")){
+                                record = gson.fromJson(Utils.convertKonanToNdJson(sb.toString()), entryType);
+                            }else if(dumpFormat.equals("ndjson")){
+                                record = gson.fromJson(sb.toString(), entryType);
+                            }
                         }
                         sb.setLength(0);
                     }else if(sb.length() > startStr.length() && sb.toString().indexOf(startStr) != 0) {
@@ -114,8 +121,9 @@ public class ProcedureIngester extends FileIngester {
                     Thread.sleep(1000);
                 }
             }catch(Exception e) {
+//                logger.error("parsing error : line= " + line, e);
+                logger.error("parsing error : line= " + line + "\n{}", e.getMessage());
 
-                logger.error("parsing error : line= " + line, e);
             }
         }
         throw new IOException("EOF");
