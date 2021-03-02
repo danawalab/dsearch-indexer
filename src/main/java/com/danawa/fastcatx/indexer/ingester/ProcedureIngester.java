@@ -76,10 +76,12 @@ public class ProcedureIngester extends FileIngester {
                         //2개 이상 productCode가 있을 시
                         if (line.indexOf(startStr) != line.lastIndexOf(startStr)) {
                             logger.info("duplicate [%productCode%], last [%productCode%] delete");
+                            logger.info("before line : " + line);
                             StringBuffer stringBuffer = new StringBuffer(line);
                             int startIdx = stringBuffer.lastIndexOf(startStr);
                             stringBuffer.delete(startIdx, startIdx + startStr.length());
                             line = stringBuffer.toString();
+                            logger.info("after line : " + line);
                         }
 
                         if (dumpFormat.equals("konan")) {
