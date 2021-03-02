@@ -73,17 +73,6 @@ public class ProcedureIngester extends FileIngester {
                     //시작,끝 필드텍스트가 모두 포함되어 있으면 dumpFormat에 따라 ndjson 변환 혹은 그대로 반환
                     if (line.contains(startStr) && line.contains(endStr)) {
 
-                        //2개 이상 productCode가 있을 시
-                        if (line.indexOf(startStr) != line.lastIndexOf(startStr)) {
-                            logger.info("duplicate [%productCode%], last [%productCode%] delete");
-                            logger.info("before line : " + line);
-                            StringBuffer stringBuffer = new StringBuffer(line);
-                            int startIdx = stringBuffer.lastIndexOf(startStr);
-                            stringBuffer.delete(startIdx, startIdx + startStr.length());
-                            line = stringBuffer.toString();
-                            logger.info("after line : " + line);
-                        }
-
                         if (dumpFormat.equals("konan")) {
                             record = gson.fromJson(Utils.convertKonanToNdJson(line), entryType);
                         } else if (dumpFormat.equals("ndjson")) {
