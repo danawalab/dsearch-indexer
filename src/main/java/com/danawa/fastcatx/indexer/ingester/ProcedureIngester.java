@@ -24,7 +24,8 @@ public class ProcedureIngester extends FileIngester {
         super(filePath, encoding, bufferSize, limitSize);
         logger.info("filePath : {}", filePath);
         gson = new Gson();
-        entryType = new TypeToken<Map<String, Object>>() {}.getType();
+        entryType = new TypeToken<Map<String, Object>>() {
+        }.getType();
         isRun = true;
         sb = new StringBuilder();
 
@@ -40,27 +41,27 @@ public class ProcedureIngester extends FileIngester {
 
     @Override
     protected Map<String, Object> parse(BufferedReader reader) throws IOException {
-        String line="";
+        String line = "";
         //종료 체크용 카운트
         int waitCount = 0;
-        String startStr="";
-        String endStr="";
+        String startStr = "";
+        String endStr = "";
         while (isRun) {
             try {
 
                 //byte X -> char
                 line = reader.readLine();
-                if(line != null) {
-                    waitCount=0;
+                if (line != null) {
+                    waitCount = 0;
                     //TODO String dumpFormat,
                     Map<String, Object> record = new HashMap<>();
 
                     //dumpFormat에 따라 체크하는 텍스트를 지정해준다.
-                    if(dumpFormat.equals("konan")){
+                    if (dumpFormat.equals("konan")) {
                         startStr = "[%productCode%]";
                         //endStr = "[%promotionName%]";
-                        endStr= "[%modifyDate%]";
-                    }else if(dumpFormat.equals("ndjson")){
+                        endStr = "[%modifyDate%]";
+                    } else if (dumpFormat.equals("ndjson")) {
                         startStr = "{\"productCode\":";
                         //endStr = "\"promotionName\":";
                         endStr = "\"modifyDate\":";
@@ -70,38 +71,40 @@ public class ProcedureIngester extends FileIngester {
                     //추후 개행문자로 구분하도록 수정 예정
 
                     //시작,끝 필드텍스트가 모두 포함되어 있으면 dumpFormat에 따라 ndjson 변환 혹은 그대로 반환
-                    if(line.contains(startStr) && line.contains(endStr)) {
+                    if (line.contains(startStr) && line.contains(endStr)) {
 
-                        if(dumpFormat.equals("konan")){
+                        //2개 이상 productCode가 있을 시
+                        if (line.indexOf(startStr) != line.lastIndexOf(startStr)) {
+                            logger.info("duplicate [%productCode%], last [%productCode%] delete");
+                            StringBuffer stringBuffer = new StringBuffer(line);
+                            int startIdx = stringBuffer.lastIndexOf(startStr);
+                            stringBuffer.delete(startIdx, startIdx + startStr.length());
+                            line = stringBuffer.toString();
+                        }
+
+                        if (dumpFormat.equals("konan")) {
                             record = gson.fromJson(Utils.convertKonanToNdJson(line), entryType);
-                        }else if(dumpFormat.equals("ndjson")){
+                        } else if (dumpFormat.equals("ndjson")) {
                             record = gson.fromJson(line, entryType);
                         }
 
-                    }else{
+                    } else {
                         //정상적인 상품 ROW가 아니면 StringBuilder에 append
                         logger.debug("append line : {}", line);
                         sb.append(line);
                     }
 
                     //append된 StringBuilder가 시작, 끝 텍스트를 포함하고 있으면 반환 후 StringBuilder 초기화
-                    if(sb.toString().contains(startStr) && sb.toString().contains(endStr)) {
+                    if (sb.toString().contains(startStr) && sb.toString().contains(endStr)) {
                         logger.debug("sb : {}", sb.toString());
 
-                        //2개 이상 productCode가 있을 시
-                        if(sb.toString().indexOf(startStr) != sb.toString().lastIndexOf(startStr)){
-                            logger.info("duplicate [%productCode%], skip");
-                        }else if(sb.toString().indexOf(endStr) != sb.toString().lastIndexOf(endStr)){
-                            logger.info("duplicate [%modifyDate%], skip");
-                        }else{
-                            if(dumpFormat.equals("konan")){
-                                record = gson.fromJson(Utils.convertKonanToNdJson(sb.toString()), entryType);
-                            }else if(dumpFormat.equals("ndjson")){
-                                record = gson.fromJson(sb.toString(), entryType);
-                            }
+                        if (dumpFormat.equals("konan")) {
+                            record = gson.fromJson(Utils.convertKonanToNdJson(sb.toString()), entryType);
+                        } else if (dumpFormat.equals("ndjson")) {
+                            record = gson.fromJson(sb.toString(), entryType);
                         }
                         sb.setLength(0);
-                    }else if(sb.length() > startStr.length() && sb.toString().indexOf(startStr) != 0) {
+                    } else if (sb.length() > startStr.length() && sb.toString().indexOf(startStr) != 0) {
                         //문서 ROW의 시작은 항상 상품코드이므로 상품코드가 먼저 시작되지 않았다면 초기화
                         //sb.length 체크 이유는 상품코드 텍스트가 짤렸을때 초기화 되는것을 방지( ex. [%PRODU  )
                         logger.debug("reset sb : {} ", sb.toString());
@@ -109,21 +112,20 @@ public class ProcedureIngester extends FileIngester {
                     }
 
                     return record;
-                }else{
+                } else {
                     //대기 상태가 연속으로 X회 이상이면 반복 중지
                     // FIXME rsync 전송이 갑자기 느려져서 20초간 한문서도 전송받지 못하거나
                     // 그외 어떤 이유(시스템 부하)로 잠시 멈출때는 전송완료와 구별하지 못함.
-                    if(waitCount > 20) {
+                    if (waitCount > 20) {
                         stop();
                     }
                     logger.info(("wait"));
                     waitCount++;
                     Thread.sleep(1000);
                 }
-            }catch(Exception e) {
-//                logger.error("parsing error : line= " + line, e);
-                logger.error("parsing error : line= " + line + "\n{}", e.getMessage());
-
+            } catch (Exception e) {
+                logger.error("parsing error : line= " + line, e);
+//                logger.error("parsing error : line= " + line + "\n{}", e.getMessage());
             }
         }
         throw new IOException("EOF");
@@ -131,7 +133,7 @@ public class ProcedureIngester extends FileIngester {
 
 
     public void stop() {
-        isRun =false;
+        isRun = false;
     }
 
 }

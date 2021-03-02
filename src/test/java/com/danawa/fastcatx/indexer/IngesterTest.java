@@ -300,4 +300,25 @@ public class IngesterTest {
         }
     }
 
+
+    @Test
+    public void duplicateProductCode(){
+        String line = "[%productCode%] [%shopCode%]TP40F [%shopProductCode%]P4862257731 [%productName%]$wpdl$ ???? ?? ?? ??? 1.8kg R>?????R> ??? ?? [%productCode%] [%shopCode%]EE128 [%shopProductCode%]1877213724 [%productName%](???) ???? 2? ??? ???? (0.9LX1?) ?? [%productMaker%] [%productImageUrl%]http://gdimg1.gmarket.co.kr/goods_image2/large_jpgimg/187/721/1877213724.jpg?ver=10876668701 [%pcPrice%]5180 [%mobilePrice%]5180 [%shopCoupon%]3% [%shopGift%] [%dataStat%]N [%categoryCode1%]46803 [%categoryCode2%]56855 [%categoryCode3%]56867 [%categoryCode4%]0 [%deliveryPrice%]2500 [%popularityScore%]0 [%groupSeq%]13 [%addDescription%] [%linkUrl%]http://www.gmarket.co.kr/challenge/neo_jaehu/jaehu_goods_gate.asp?goodscode=1877213724&GoodsSale=Y&jaehuid=200002657 [%couponDownloadYN%]N [%promotionPrice%] [%shopName%]G?? [%feeType%]T [%mallType%]1 [%minabYN%]N [%promotionName%] [%bestGoodsSort%]0 [%orderDateYN%]N [%registerDate%]20200901 [%modifyDate%]20210126";
+        String startStr = "[%productCode%]";
+        String endStr = "[%modifyDate%]";
+        StringBuilder sb = new StringBuilder(line);
+        //2개 이상 productCode가 있을 시
+        if (sb.toString().indexOf(startStr) != sb.toString().lastIndexOf(startStr)) {
+            int startIdx = sb.toString().lastIndexOf(startStr);
+            sb.delete(startIdx, startIdx + startStr.length());
+        }
+
+        //제대로 삭제 되었는지 확인
+        if (sb.toString().indexOf(startStr) != sb.toString().lastIndexOf(startStr)) {
+            System.out.println("not deleted");
+        }else{
+            System.out.println(sb.toString());
+        }
+    }
+
 }
