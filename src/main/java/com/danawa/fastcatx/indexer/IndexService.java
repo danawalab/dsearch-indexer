@@ -409,7 +409,9 @@ public class IndexService {
                 //logger.info("record : {}" ,record.size());
 
                 if (filter != null && record != null && record.size() > 0) {
+                    logger.info("indexService before : {}", record);
                     record = filter.filter(record);
+                    logger.info("indexService after : {}", record);
                 }
 
                 if (record != null && record.size() > 0) {
@@ -433,15 +435,12 @@ public class IndexService {
                     }
 
                     request.add(indexRequest);
-
                 }
 
                 if (count % bulkSize == 0) {
                     queue.put(request);
-
 //                    BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
 //                    logger.debug("bulk! {}", count);
-
                     request = new BulkRequest();
                 }
 

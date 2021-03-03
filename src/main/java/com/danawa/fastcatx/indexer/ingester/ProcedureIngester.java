@@ -78,16 +78,16 @@ public class ProcedureIngester extends FileIngester {
                         } else if (dumpFormat.equals("ndjson")) {
                             record = gson.fromJson(line, entryType);
                         }
-                        logger.info("{}", record);
+                        logger.debug("{}", record);
                     } else {
                         //정상적인 상품 ROW가 아니면 StringBuilder에 append
-                        logger.info("append line : {}", line);
+                        logger.debug("append line : {}", line);
                         sb.append(line);
                     }
 
                     //append된 StringBuilder가 시작, 끝 텍스트를 포함하고 있으면 반환 후 StringBuilder 초기화
                     if (sb.toString().contains(startStr) && sb.toString().contains(endStr)) {
-                        logger.info("sb : {}", sb.toString());
+                        logger.debug("sb : {}", sb.toString());
 
                         if (dumpFormat.equals("konan")) {
                             record = gson.fromJson(Utils.convertKonanToNdJson(sb.toString()), entryType);
@@ -98,7 +98,7 @@ public class ProcedureIngester extends FileIngester {
                     } else if (sb.length() > startStr.length() && sb.toString().indexOf(startStr) != 0) {
                         //문서 ROW의 시작은 항상 상품코드이므로 상품코드가 먼저 시작되지 않았다면 초기화
                         //sb.length 체크 이유는 상품코드 텍스트가 짤렸을때 초기화 되는것을 방지( ex. [%PRODU  )
-                        logger.info("reset sb : {} ", sb.toString());
+                        logger.debug("reset sb : {} ", sb.toString());
                         sb.setLength(0);
                     }
 
