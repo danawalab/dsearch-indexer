@@ -318,6 +318,7 @@ public class JDBCIngester implements Ingester {
                     }
                 }
 
+                logger.info("{}", keyValueMap);
                 dataSet[bulkCount] = keyValueMap;
                 bulkCount++;
                 totalCnt++;
