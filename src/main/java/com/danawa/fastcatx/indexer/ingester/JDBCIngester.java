@@ -310,7 +310,7 @@ public class JDBCIngester implements Ingester {
                                 keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(decodedFromUtf8));
 
                                 if(columnName[i].equals("inputDate")){
-                                    logger.info("unescapeHtml : {}, sb.toString(): {}", StringEscapeUtils.unescapeHtml(decodedFromUtf8), sb.toString());
+                                    logger.info("id: {}, unescapeHtml : {}, sb.toString(): {}", keyValueMap.get("id"), StringEscapeUtils.unescapeHtml(decodedFromUtf8), sb.toString());
                                 }
                             }
                         }
@@ -321,7 +321,6 @@ public class JDBCIngester implements Ingester {
                         }
                     }
                 }
-
 
                 dataSet[bulkCount] = keyValueMap;
                 bulkCount++;
