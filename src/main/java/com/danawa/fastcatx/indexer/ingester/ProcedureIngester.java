@@ -72,7 +72,6 @@ public class ProcedureIngester extends FileIngester {
 
                     //시작,끝 필드텍스트가 모두 포함되어 있으면 dumpFormat에 따라 ndjson 변환 혹은 그대로 반환
                     if (line.contains(startStr) && line.contains(endStr)) {
-
                         if (dumpFormat.equals("konan")) {
                             record = gson.fromJson(Utils.convertKonanToNdJson(line), entryType);
                         } else if (dumpFormat.equals("ndjson")) {
@@ -115,7 +114,9 @@ public class ProcedureIngester extends FileIngester {
                     Thread.sleep(1000);
                 }
             } catch (Exception e) {
-                logger.error("parsing error : line= " + line, e);
+                logger.error("parsing error : line = {}, \nconvert = {}, \nsb = {}", line, Utils.convertKonanToNdJson(line), sb.toString());
+                logger.error("{}", e);
+//                logger.error("parsing error : line= " + line, e);
 //                logger.error("parsing error : line= " + line + "\n{}", e.getMessage());
             }
         }

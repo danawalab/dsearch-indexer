@@ -13,10 +13,7 @@ import java.lang.reflect.Constructor;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -84,7 +81,6 @@ public class Utils {
         int offset = 0;
 
         while (mat.find()) {
-
             if (!isSourceFile) {
                 //row 처음에 한번만 실행.
                 writer = new StringWriter();
@@ -109,9 +105,7 @@ public class Utils {
             generator.writeStringField(key, value);
             generator.writeEndObject();
             generator.close();
-
             ndjsonString = writer.toString();
-
         }
 
         return ndjsonString;
