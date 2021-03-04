@@ -79,7 +79,7 @@ public class ProcedureIngester extends FileIngester {
                         logger.debug("{}", record);
 
                         // 비정상 상품 ROW 이후 정상 상품ROW가 읽혔을 때, sb 초기화
-                        sb.setLength(0);
+                        if(sb.length() > 0) sb.setLength(0);
                     } else {
                         //정상적인 상품 ROW가 아니면 StringBuilder에 append
                         logger.debug("append line : {}", line);
