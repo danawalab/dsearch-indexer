@@ -69,7 +69,6 @@ public class ProcedureIngester extends FileIngester {
 
 
                     //추후 개행문자로 구분하도록 수정 예정
-
                     //시작,끝 필드텍스트가 모두 포함되어 있으면 dumpFormat에 따라 ndjson 변환 혹은 그대로 반환
                     if (line.contains(startStr) && line.contains(endStr)) {
                         if (dumpFormat.equals("konan")) {
@@ -78,6 +77,9 @@ public class ProcedureIngester extends FileIngester {
                             record = gson.fromJson(line, entryType);
                         }
                         logger.debug("{}", record);
+
+                        // 비정상 상품 ROW 이후 정상 상품ROW가 읽혔을 때, sb 초기화
+                        sb.setLength(0);
                     } else {
                         //정상적인 상품 ROW가 아니면 StringBuilder에 append
                         logger.debug("append line : {}", line);
