@@ -116,6 +116,7 @@ public class ProcedureIngester extends FileIngester {
             } catch (Exception e) {
                 logger.error("parsing error : line = {}, \nconvert = {}, \nsb = {}", line, Utils.convertKonanToNdJson(line), sb.toString());
                 logger.error("{}", e);
+                sb.setLength(0);
 //                logger.error("parsing error : line= " + line, e);
 //                logger.error("parsing error : line= " + line + "\n{}", e.getMessage());
             }
