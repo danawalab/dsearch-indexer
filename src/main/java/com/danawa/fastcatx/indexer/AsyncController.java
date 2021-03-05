@@ -15,7 +15,7 @@ import java.util.UUID;
 public class AsyncController {
     private static Logger logger = LoggerFactory.getLogger(AsyncController.class);
 
-    private enum ACTION { FULL_INDEX, DYNAMIC_INDEX }
+    private enum ACTION { FULL_INDEX, DYNAMIC_INDEX, FETCH_SOURCE }
     private final IndexJobManager indexJobManager;
 
     public AsyncController(IndexJobManager indexJobManager) {
@@ -37,6 +37,12 @@ public class AsyncController {
     @PostMapping(value = "/start")
     public ResponseEntity<?> doStart(@RequestBody Map<String, Object> payload) {
         Job job = indexJobManager.start(ACTION.FULL_INDEX.name(), payload);
+        return new ResponseEntity<>(job, HttpStatus.OK);
+    }
+
+    @PostMapping(value = "/source")
+    public ResponseEntity<?> doFetchSource(@RequestBody Map<String, Object> payload) {
+        Job job = indexJobManager.start(ACTION.FETCH_SOURCE.name(), payload);
         return new ResponseEntity<>(job, HttpStatus.OK);
     }
 

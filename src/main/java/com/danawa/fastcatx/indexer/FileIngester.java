@@ -63,6 +63,11 @@ public abstract class FileIngester implements Ingester {
     }
 
     @Override
+    public void trigger() throws IOException {
+
+    }
+
+    @Override
     public void close() throws IOException {
         if(reader != null) {
             try {
@@ -169,5 +174,10 @@ public abstract class FileIngester implements Ingester {
             return items.removeFirst();
         }
         return null;
+    }
+
+    @Override
+    public boolean isTriggered() {
+        return false;
     }
 }

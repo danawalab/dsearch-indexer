@@ -181,6 +181,16 @@ public class JDBCIngester implements Ingester {
         }
     }
 
+    @Override
+    public void trigger() throws IOException {
+
+    }
+
+    @Override
+    public boolean isTriggered() {
+        return false;
+    }
+
     private  void closePstmt() {
         try {
             if (r != null) {

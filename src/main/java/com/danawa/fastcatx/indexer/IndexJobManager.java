@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -54,7 +55,21 @@ public class IndexJobManager {
         logger.info("job ID: {}", id.toString());
         if ("FULL_INDEX".equalsIgnoreCase(action)) {
             new Thread(new IndexJobRunner(job)).start();
+        } else if ("FETCH_SOURCE".equalsIgnoreCase(action)) {
+
+            String index = (String) payload.get("index");
+            String source = (String) payload.get("source");
+            //TODO rsyncFile 로 들어온 전체색인중에서 source ready 를 대기하고 있는 indexing job이 있을 것이다.
+            // 그 job은 source map을 만들고 대기하며 map이 0이 될때까지 색인작업은 살아있다.
+            // 모든 소스가 색인되어 map이 0이 되면 색인작업이 끝난다.
+            // IndexJobRunner:335 참조..
+            try {
+                IndexJobRunner.getIngester(index, source).trigger();
+            } catch (IOException e) {
+                logger.error("Error while trigger.", e);
+            }
         }
+
         return job;
     }
 
@@ -69,6 +84,5 @@ public class IndexJobManager {
         }
         return id;
     }
-
 
 }

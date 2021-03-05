@@ -523,4 +523,5 @@ public class IndexService {
                 client.enrich().stats(statsRequest, RequestOptions.DEFAULT);
         return null;
     }
+
 }

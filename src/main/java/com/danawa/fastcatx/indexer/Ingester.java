@@ -14,4 +14,8 @@ public interface Ingester {
     Map<String, Object> next() throws IOException;
 
     void close() throws IOException;
+
+    void trigger() throws IOException;
+
+    boolean isTriggered();
 }

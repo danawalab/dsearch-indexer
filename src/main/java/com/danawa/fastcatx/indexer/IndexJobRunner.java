@@ -24,6 +24,18 @@ public class IndexJobRunner implements Runnable {
     private IndexService service;
     private Ingester ingester;
 
+    private static Map<String, Ingester> ingesterTriggerMap = new ConcurrentHashMap();
+
+
+    public static void registerIngester(String index, String source, Ingester ingester) {
+        ingesterTriggerMap.put(index + ":" + source, ingester);
+    }
+
+    public static Ingester getIngester(String index, String source) {
+        return ingesterTriggerMap.get(index + ":" + source);
+    }
+
+
     public IndexJobRunner(Job job) {
         this.job = job;
         job.setStatus(STATUS.READY.name());
@@ -331,6 +343,42 @@ public class IndexJobRunner implements Runnable {
                 }
 
                 ingester = new ProcedureLinkIngester(sb.toString(), dumpFormat, encoding, 1000, limitSize);
+
+            } else if (type.equals("rsyncMultiFile")) {
+
+                String dumpFormat = (String) payload.get("dumpFormat"); //ndjson, konan
+                String rsyncPath = (String) payload.get("rsyncPath"); //rsync - Full Path
+                String rsyncIp = (String) payload.get("rsyncIp"); // rsync IP
+                String bwlimit = (String) payload.getOrDefault("bwlimit","0"); // rsync 전송속도 - 1024 = 1m/s
+                boolean procedureSkip  = (Boolean) payload.getOrDefault("procedureSkip",false); // 프로시저 스킵 여부
+                boolean rsyncSkip = (Boolean) payload.getOrDefault("rsyncSkip",false); // rsync 스킵 여부
+                String trigger = (String) payload.get("trigger");
+
+                MultiSourceIngester ingester2 = new MultiSourceIngester();
+
+                Map<String, Object> sourceMap = (Map<String, Object>) payload.get("source");
+                Object global = sourceMap.get("global");
+                Map<String, Object> globalMap = (Map<String, Object>) global;
+                sourceMap.entrySet().forEach(pair -> {
+                    String key = pair.getKey();
+                    Object value = pair.getValue();
+                    // API 방식으로 소스가 호출된다면..
+
+                    boolean triggerAuto = "api".equals(trigger);
+                    Ingester sourceIngester = new RsyncFileIngester(key, value, globalMap, triggerAuto);
+                    if(triggerAuto) {
+                        registerIngester(index, key, sourceIngester);
+                    }
+                });
+
+                //TODO trigger가 api라면 api를 열고 소스별로 기다린다.
+
+
+                //소스별로 ingester를 사용해야 쓰레드도 각각 사용하고 더 빠를듯.
+
+                ingester = ingester2;
+
+
             }
 
             Ingester finalIngester = ingester;
