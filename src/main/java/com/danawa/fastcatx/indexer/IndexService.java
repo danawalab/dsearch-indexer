@@ -186,7 +186,7 @@ public class IndexService {
                         request.add(indexRequest);
                     }
 
-                    if (count % bulkSize == 0) {
+                    if (count != 0 && count % bulkSize == 0) {
                         // 기존 소스
 //                        BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
 //                        checkResponse(bulkResponse);
@@ -251,7 +251,7 @@ public class IndexService {
                         request = new BulkRequest();
                     }
 
-                    if (count % 10000 == 0) {
+                    if (count != 0 && count % 10000 == 0) {
                         logger.info("index: [{}] {} ROWS FLUSHED! in {}ms", index, count, (System.nanoTime() - time) / 1000000);
                     }
                     //logger.info("{}",count);
