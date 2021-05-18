@@ -149,6 +149,7 @@ public class IndexJobRunner implements Runnable {
             } else if (type.equals("multipleDumpFile")) {
                 // 다중 색인
                 multipleDumpFile(host, port, esUsername, esPassword, scheme, index, reset, filterClassName, bulkSize, threadSize, pipeLine, indexSettings, payload);
+                return;
             }else if (type.equals("procedure")) {
 
                 //프로시저 호출에 필요한 정보
@@ -474,7 +475,6 @@ public class IndexJobRunner implements Runnable {
             Iterator<Integer> iterator = groupSeqList.iterator();
             List<Exception> exceptions = Collections.synchronizedList(new ArrayList<>());
 
-
             service = new IndexService(host, port, scheme, esUsername, esPassword);
             // 인덱스를 초기화하고 0건부터 색인이라면.
             if (reset) {
@@ -560,10 +560,12 @@ public class IndexJobRunner implements Runnable {
 
                         Filter filter = (Filter) Utils.newInstance(filterClassName);
 
+                        IndexService indexService = new IndexService(host, port, scheme, esUsername, esPassword);
+
                         if (threadSize > 1) {
-                            service.indexParallel(finalIngester, index, bulkSize, filter, threadSize, job, pipeLine);
+                            indexService.indexParallel(finalIngester, index, bulkSize, filter, threadSize, job, pipeLine);
                         } else {
-                            service.index(finalIngester, index, bulkSize, filter, job, pipeLine);
+                            indexService.index(finalIngester, index, bulkSize, filter, job, pipeLine);
                         }
 
                     } catch (InterruptedException | FileNotFoundException e) {
@@ -581,6 +583,7 @@ public class IndexJobRunner implements Runnable {
                     }
                 }).start();
             }
+
             // 최대 3일동안 기다려본다.
             latch.await(3, TimeUnit.DAYS);
 
@@ -590,12 +593,10 @@ public class IndexJobRunner implements Runnable {
                 job.setStatus(STATUS.STOP.name());
                 job.setError(exceptions.toString());
             }
-        } catch (InterruptedException | IOException e) {
+        } catch (Exception e) {
             logger.error("", e);
             job.setStatus(STATUS.STOP.name());
             job.setError(e.getMessage());
-        } finally {
-            job.setEndTime(System.currentTimeMillis() / 1000);
         }
     }
 

@@ -109,7 +109,7 @@ public class ProcedureIngester extends FileIngester {
                     if(waitCount > 20) {
                         stop();
                     }
-                    logger.info(("wait"));
+                    logger.info("wait {}", waitCount);
                     waitCount++;
                     Thread.sleep(1000);
                 }
