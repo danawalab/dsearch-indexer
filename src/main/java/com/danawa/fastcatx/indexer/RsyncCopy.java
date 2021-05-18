@@ -1,12 +1,9 @@
 package com.danawa.fastcatx.indexer;
 
 import com.danawa.fastcatx.indexer.output.LogOutPutProcessOutput;
-import com.github.fracpete.processoutput4j.output.CollectingProcessOutput;
-import com.github.fracpete.processoutput4j.output.ConsoleOutputProcessOutput;
 import com.github.fracpete.rsync4j.RSync;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Async;
 
 import java.io.File;
 
@@ -64,9 +61,14 @@ public class RsyncCopy extends Thread {
             file.delete();
         }
         logger.info("Rsync Command : {} ", "rsync -av --inplace --bwlimit="+bwlimit +" "+rsyncIp+"::" + rsyncPath+"/"+rsyncFileName + " " +path);
+
+        String sourceFile = rsyncIp+"::" + rsyncPath + "/" + rsyncFileName;
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            sourceFile = rsyncPath + "/" + rsyncFileName;
+        }
         RSync rsync = new RSync()
                 //.source("C:\\Users\\admin\\Desktop\\indexFile\\sample\\prodExt_5")
-                .source(rsyncIp+"::" + rsyncPath+"/"+rsyncFileName)
+                .source(sourceFile)
                 .destination(path)
                 .recursive(true)
                 //.progress(true)

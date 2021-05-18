@@ -493,7 +493,7 @@ public class IndexJobRunner implements Runnable {
                         File dumpFileDir = new File(dumpFileDirPath);
                         Ingester finalIngester = null;
 
-                        if (dumpFileDir.exists()) {
+                        if (!dumpFileDir.exists()) {
                             dumpFileDir.mkdirs();
                         }
 
