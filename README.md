@@ -1,4 +1,4 @@
-# DSearch 색인기
+# DSearch 색인기 (라이브러리)
 
 신규 검색엔진인 DSearch(이하 DS)는 Elastic Search (이하 ES)에 데이터를 저장하므로, 색인모듈이 필요하지 않다. 
 
@@ -8,6 +8,20 @@
 
 이 색인기는 항상 떠있다가 REST API로 색인요청을 받으면 색인 쓰레드를 만들어서 작업을 시작한다.
 
+
+## Library JAR 생성 및 DSearch-server 적용 절차
+
+1. 메이븐 패키징을 실행합니다.
+
+2. target 디렉토리에 dsearch-indexer-<버전>.jar.origin 생성 확인합니다.
+
+3. dsearch-indexer-<버전>.jar.origin 파일을 dsearch-server 프로젝트에서 lib에 추가합니다.
+
+4. dsearch-indexer-<버전>.jar 과거 버전은 삭제 합니다.
+
+5. dsearch-indexer-<버전>.jar.origin 이름을 dsearch-indexer-<버전>.jar 으로 변경합니다.
+
+6. dsearch-server를 실행하여 색인 테스트를 진행합니다.
 
 ## 색인작업절차
 

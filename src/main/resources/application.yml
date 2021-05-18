@@ -1,6 +1,10 @@
 server:
   port: 9350
 
+logging:
+  config: classpath:log4j2-dev.xml
+
+
 elasticsearch:
   thread: 50
   username: fastcatx

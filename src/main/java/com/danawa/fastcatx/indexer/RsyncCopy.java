@@ -65,7 +65,11 @@ public class RsyncCopy extends Thread {
         String sourceFile = rsyncIp+"::" + rsyncPath + "/" + rsyncFileName;
         if (System.getProperty("os.name").toLowerCase().contains("win")) {
             sourceFile = rsyncPath + "/" + rsyncFileName;
+            logger.info("OS: Windows, sourcePath: {}, targetPath: {}", sourceFile, path);
+        } else {
+            logger.info("OS: Linux, sourcePath: {}, targetPath: {}", sourceFile, path);
         }
+
         RSync rsync = new RSync()
                 //.source("C:\\Users\\admin\\Desktop\\indexFile\\sample\\prodExt_5")
                 .source(sourceFile)

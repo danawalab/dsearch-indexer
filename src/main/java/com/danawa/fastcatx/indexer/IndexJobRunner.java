@@ -489,7 +489,7 @@ public class IndexJobRunner implements Runnable {
                 Integer groupSeq = iterator.next();
                 new Thread(() -> {
                     try {
-                        String dumpFileDirPath = String.format("%s/V%d", path, groupSeq);
+                        String dumpFileDirPath = String.format("%sV%d", path, groupSeq);
                         File dumpFileDir = new File(dumpFileDirPath);
                         Ingester finalIngester = null;
 
