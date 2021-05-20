@@ -170,5 +170,4 @@ public abstract class FileIngester implements Ingester {
         }
         return null;
     }
-
 }

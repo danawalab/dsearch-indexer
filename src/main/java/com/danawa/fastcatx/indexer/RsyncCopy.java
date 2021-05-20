@@ -1,9 +1,12 @@
 package com.danawa.fastcatx.indexer;
 
 import com.danawa.fastcatx.indexer.output.LogOutPutProcessOutput;
+import com.github.fracpete.processoutput4j.output.CollectingProcessOutput;
+import com.github.fracpete.processoutput4j.output.ConsoleOutputProcessOutput;
 import com.github.fracpete.rsync4j.RSync;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
 
 import java.io.File;
 
@@ -60,16 +63,16 @@ public class RsyncCopy extends Thread {
             logger.info("기존 파일 삭제 : {}", file);
             file.delete();
         }
-        logger.info("Rsync Command : {} ", "rsync -av --inplace --bwlimit="+bwlimit +" "+rsyncIp+"::" + rsyncPath+"/"+rsyncFileName + " " +path);
 
         String sourceFile = rsyncIp+"::" + rsyncPath + "/" + rsyncFileName;
-        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+        if (System.getProperty("os.name") != null && System.getProperty("os.name").toLowerCase().contains("win")) {
             sourceFile = rsyncPath + "/" + rsyncFileName;
             logger.info("OS: Windows, sourcePath: {}, targetPath: {}", sourceFile, path);
         } else {
             logger.info("OS: Linux, sourcePath: {}, targetPath: {}", sourceFile, path);
         }
 
+        logger.info("Rsync Command : {} ", "rsync -av --inplace --bwlimit="+bwlimit +" "+rsyncIp+"::" + rsyncPath+"/"+rsyncFileName + " " +path);
         RSync rsync = new RSync()
                 //.source("C:\\Users\\admin\\Desktop\\indexFile\\sample\\prodExt_5")
                 .source(sourceFile)
