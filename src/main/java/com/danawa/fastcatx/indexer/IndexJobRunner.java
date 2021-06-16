@@ -2,10 +2,17 @@ package com.danawa.fastcatx.indexer;
 
 import com.danawa.fastcatx.indexer.entity.Job;
 import com.danawa.fastcatx.indexer.ingester.*;
+//import com.danawa.fastcatx.indexer.preProcess.VmFirstMakeDatePreProcess;
+import com.danawa.fastcatx.indexer.preProcess.PreProcess;
 import com.github.fracpete.processoutput4j.output.CollectingProcessOutput;
 import com.github.fracpete.rsync4j.RSync;
+import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -17,11 +24,21 @@ import java.util.concurrent.*;
 
 public class IndexJobRunner implements Runnable {
     private static Logger logger = LoggerFactory.getLogger(IndexJobRunner.class);
-    private enum STATUS { READY, RUNNING, SUCCESS, ERROR, STOP }
+    public enum STATUS { READY, RUNNING, SUCCESS, ERROR, STOP }
     private Job job;
     private IndexService service;
     private Ingester ingester;
-    private Set<Integer> subStarted = Collections.synchronizedSet(new LinkedHashSet<>());
+
+    private final RestTemplate restTemplate = new RestTemplate(Utils.getRequestFactory());
+    private final Gson gson = new Gson();
+
+    private boolean autoDynamic;
+    private String autoDynamicIndex;
+    private List<String> autoDynamicQueueNames;
+    private String autoDynamicCheckUrl;
+    private String autoDynamicQueueIndexUrl;
+    private int autoDynamicQueueIndexConsumeCount = 1;
+
 
     public IndexJobRunner(Job job) {
         this.job = job;
@@ -62,6 +79,15 @@ public class IndexJobRunner implements Runnable {
         try {
             job.setStatus(STATUS.RUNNING.name());
             Map<String, Object> payload = job.getRequest();
+            logger.debug("{}", gson.toJson(payload));
+            Boolean preProcess = (Boolean) payload.getOrDefault("preProcess", false);
+            if (preProcess) {
+                PreProcess process = new PreProcess.EmptyPreProcess();
+                process.starter(job);
+                job.setStatus(STATUS.SUCCESS.name());
+                return;
+            }
+
             logger.info("Started Indexing Job Runner");
             // 공통
             // ES 호스트
@@ -110,6 +136,41 @@ public class IndexJobRunner implements Runnable {
             // 테스트용도로 데이터 갯수를 제한하고 싶을때 수치.
             Integer limitSize = (Integer) payload.getOrDefault("limitSize", 0);
 
+            // 자동으로 동적색인 on/off
+            autoDynamic = (Boolean) payload.getOrDefault("autoDynamic",false);
+            if (autoDynamic) {
+//                    자동으로 동적색인 필수 파라미터
+                autoDynamicIndex = index;
+                autoDynamicQueueNames = Arrays.asList(((String) payload.getOrDefault("autoDynamicQueueNames","")).split(","));
+                autoDynamicCheckUrl = (String) payload.getOrDefault("autoDynamicCheckUrl","");
+                autoDynamicQueueIndexUrl = (String) payload.getOrDefault("autoDynamicQueueIndexUrl","");
+                try {
+                    autoDynamicQueueIndexConsumeCount = (int) payload.getOrDefault("autoDynamicQueueIndexConsumeCount",1);
+                } catch (Exception ignore) {
+                    autoDynamicQueueIndexConsumeCount = Integer.parseInt((String) payload.getOrDefault("autoDynamicQueueIndexConsumeCount","1"));
+                }
+                // 큐 이름이 여러개 일 경우.
+                for (String autoDynamicQueueName : autoDynamicQueueNames) {
+                    try {
+                        // 동적색인 off
+                        updateQueueIndexerConsume(false, autoDynamicQueueIndexUrl, autoDynamicQueueName, 0);
+                        Thread.sleep(1000);
+                    } catch (Exception e){
+                        logger.error("", e);
+                    }
+                }
+                logger.info("[{}] autoDynamic >>> Close <<<", autoDynamicIndex);
+            }
+
+            boolean dryRun = (Boolean) payload.getOrDefault("dryRun",false); // rsync 스킵 여부
+            if (dryRun) {
+                int r = (int) Math.abs((Math.random() * 999999) % 120) * 1000;
+                Thread.sleep(r);
+                job.setStatus(STATUS.SUCCESS.name());
+                logger.info("[DRY_RUN] index: {} procedure Type {}. Index Success", index, type);
+                return;
+            }
+
             if (type.equals("ndjson")) {
                 ingester = new NDJsonIngester(path, encoding, 1000, limitSize);
             } else if (type.equals("csv")) {
@@ -149,9 +210,9 @@ public class IndexJobRunner implements Runnable {
                 }
             } else if (type.equals("multipleDumpFile")) {
                 // 다중 색인
-                multipleDumpFile(host, port, esUsername, esPassword, scheme, index, reset, filterClassName, bulkSize, threadSize, pipeLine, indexSettings, payload);
+                new MultipleDumpFile().index(job, host, port, esUsername, esPassword, scheme, index, reset, filterClassName, bulkSize, threadSize, pipeLine, indexSettings, payload);
                 return;
-            }else if (type.equals("procedure")) {
+            } else if (type.equals("procedure")) {
 
                 //프로시저 호출에 필요한 정보
                 String driverClassName = (String) payload.get("driverClassName");
@@ -159,7 +220,14 @@ public class IndexJobRunner implements Runnable {
                 String user = (String) payload.get("user");
                 String password = (String) payload.get("password");
                 String procedureName = (String) payload.getOrDefault("procedureName","PRSEARCHPRODUCT"); //PRSEARCHPRODUCT
-                Integer groupSeq = (Integer) payload.get("groupSeq");
+                Integer groupSeq = null;
+                if (payload.get("groupSeq") != null) {
+                    try {
+                        groupSeq = (Integer) payload.get("groupSeq");
+                    } catch (Exception e) {
+                        groupSeq = Integer.parseInt((String) payload.get("groupSeq"));
+                    }
+                }
                 String dumpFormat = (String) payload.get("dumpFormat"); //ndjson, konan
                 String rsyncPath = (String) payload.get("rsyncPath"); //rsync - Full Path
                 String rsyncIp = (String) payload.get("rsyncIp"); // rsync IP
@@ -181,7 +249,7 @@ public class IndexJobRunner implements Runnable {
                 if(procedureSkip == false) {
                     execProdure = procedure.callSearchProcedure();
                 }
-                logger.info("execProdure : {}",execProdure);
+//                logger.info("execProdure : {}",execProdure);
 
                 //프로시저 결과 True, R 스킵X or 프로시저 스킵 and rsync 스킵X
                 if((execProdure && rsyncSkip == false) || (procedureSkip && rsyncSkip == false)) {
@@ -329,7 +397,7 @@ public class IndexJobRunner implements Runnable {
                                 if(procedureSkip == false) {
                                     execProdure = procedureMap.get(groupSeq);
                                 }
-                                logger.info("execProdure : {}",execProdure);
+//                                logger.info("execProdure : {}",execProdure);
                                 RSync rsync = new RSync()
                                         .source(rsyncIp+"::" + rsyncPath+"/linkExt_"+groupSeqNumber)
                                         .destination(path)
@@ -404,6 +472,10 @@ public class IndexJobRunner implements Runnable {
             Ingester finalIngester = ingester;
             Filter filter = (Filter) Utils.newInstance(filterClassName);
 
+            if (job != null && job.getStopSignal() != null && job.getStopSignal()) {
+                logger.info("[STOP SIGNAL] type: procedure");
+                throw new StopSignalException();
+            }
 //            service = new IndexService(host, port, scheme);
             service = new IndexService(host, port, scheme, esUsername, esPassword);
             // 인덱스를 초기화하고 0건부터 색인이라면.
@@ -434,233 +506,86 @@ public class IndexJobRunner implements Runnable {
             logger.error("error .... ", e);
         } finally {
             job.setEndTime(System.currentTimeMillis() / 1000);
-        }
-    }
-
-    protected void multipleDumpFile(String host, Integer port, String esUsername, String esPassword, String scheme, String index,
-                                    Boolean reset, String filterClassName,
-                                    Integer bulkSize, Integer threadSize, String pipeLine, Map<String, Object> indexSettings,
-                                    Map<String, Object> payload) {
-        try {
-            /**
-             * file기반 인제스터 설정
-             */
-            //파일 경로.
-            String path = (String) payload.get("path");
-            // 파일 인코딩. utf-8, cp949 등..
-            String encoding = (String) payload.get("encoding");
-            // 테스트용도로 데이터 갯수를 제한하고 싶을때 수치.
-            Integer limitSize = (Integer) payload.getOrDefault("limitSize", 0);
-
-            //프로시저 호출에 필요한 정보
-            String driverClassName = (String) payload.get("driverClassName");
-            String url = (String) payload.get("url");
-            String user = (String) payload.get("user");
-            String password = (String) payload.get("password");
-            String procedureName = (String) payload.getOrDefault("procedureName","PRSEARCHPRODUCT"); //PRSEARCHPRODUCT
-            String dumpFormat = (String) payload.get("dumpFormat"); //ndjson, konan
-            String rsyncPath = (String) payload.get("rsyncPath"); //rsync - Full Path
-            String rsyncIp = (String) payload.get("rsyncIp"); // rsync IP
-            String bwlimit = (String) payload.getOrDefault("bwlimit","0"); // rsync 전송속도 - 1024 = 1m/s
-            boolean procedureSkip  = (Boolean) payload.getOrDefault("procedureSkip",false); // 프로시저 스킵 여부
-            boolean rsyncSkip = (Boolean) payload.getOrDefault("rsyncSkip",false); // rsync 스킵 여부
-
-            Set<Integer> groupSeqList = parseGroupSeq(String.valueOf(payload.get("groupSeq")));
-            if (groupSeqList.size() == 0) {
-                logger.warn("Not Found GroupSeq.. example: `1,2,3,4-10`");
-                return;
-            }
-
-            CountDownLatch latch = new CountDownLatch(groupSeqList.size());
-            List<Exception> exceptions = Collections.synchronizedList(new ArrayList<>());
-
-            long n = 0;
-
-            while (groupSeqList.size() != job.getGroupSeq().size() || subStarted.size() != job.getGroupSeq().size()) {
-                Iterator<Integer> iterator = job.getGroupSeq().iterator();
-
-                if("STOP".equalsIgnoreCase(job.getStatus())) {
-//                    1. 기존 인덱싱하던 쓰래드를 기다린다.
-//                    2. 남은 그룹 시퀀스가 있으면 실행완료추가한다.
-                    subStarted.addAll(groupSeqList);
-                    logger.info("Stop Signal. Started GroupSeq: {}", job.getGroupSeq());
-                    job.getGroupSeq().addAll(groupSeqList);
-                    break;
-                } else {
-                    while (iterator.hasNext()) {
-                        Integer groupSeq = iterator.next();
-                        if (!subStarted.contains(groupSeq)) {
-                            if (subStarted.size() == 0) {
-//                            처음일때만 리셋가능.
-                                service = new IndexService(host, port, scheme, esUsername, esPassword);
-                                // 인덱스를 초기화하고 0건부터 색인이라면.
-                                if (reset) {
-                                    if (service.existsIndex(index)) {
-                                        if(service.deleteIndex(index)) {
-                                            service.createIndex(index, indexSettings);
-                                        }
+            if (autoDynamic) {
+                new Thread(() -> {
+                    int r = 20;
+                    logger.info("create success check thread");
+                    while (true) {
+                        try {
+//                            색인 취소 체크. 동적색인 on
+                            if (job != null && job.getStopSignal() != null && job.getStopSignal()) {
+                                logger.info("STOP SIGNAL");
+                                for (String autoDynamicQueueName : autoDynamicQueueNames) {
+                                    try {
+                                        updateQueueIndexerConsume(false, autoDynamicQueueIndexUrl, autoDynamicQueueName, autoDynamicQueueIndexConsumeCount);
+                                        Thread.sleep(1000);
+                                    } catch (Exception e){
+                                        logger.error("", e);
                                     }
                                 }
+                                break;
                             }
-                            subStarted.add(groupSeq);
-                            logger.info("Started GroupSeq Indexing : {}", groupSeq);
-//                        groupSeq 색인진행.
-                            new Thread(() -> {
-                                try {
-                                    String dumpFileDirPath = String.format("%sV%d", path, groupSeq);
-                                    File dumpFileDir = new File(dumpFileDirPath);
-                                    Ingester finalIngester = null;
-
-                                    if (!dumpFileDir.exists()) {
-                                        dumpFileDir.mkdirs();
+//                            색인 완료 여부 체크
+                            logger.info("상테 체크 URL: {}", autoDynamicCheckUrl);
+                            ResponseEntity<String> searchCheckResponse = restTemplate.exchange(autoDynamicCheckUrl,
+                                    HttpMethod.GET,
+                                    new HttpEntity(new HashMap<String, Object>()),
+                                    String.class
+                            );
+                            String status = null;
+                            try {
+                                Map<String, Object> body = gson.fromJson(searchCheckResponse.getBody(), Map.class);
+                                Map<String, Object> info = gson.fromJson(gson.toJson(body.get("info")), Map.class);
+                                status = String.valueOf(info.get("status"));
+                            }catch (Exception ignore) {}
+//                            색인이 완료라면 동적색인 ON
+                            if ("SUCCESS".equalsIgnoreCase(status) || "NOT_STARTED".equalsIgnoreCase(status)) {
+                                for (String autoDynamicQueueName : autoDynamicQueueNames) {
+                                    try {
+                                        updateQueueIndexerConsume(false, autoDynamicQueueIndexUrl, autoDynamicQueueName, autoDynamicQueueIndexConsumeCount);
+                                        Thread.sleep(1000);
+                                    } catch (Exception e){
+                                        logger.error("", e);
                                     }
-
-                                    logger.info("dumpFileDirPath: {}", dumpFileDirPath);
-
-                                    //프로시져
-                                    CallProcedure procedure = new CallProcedure(driverClassName, url, user, password, procedureName, groupSeq, dumpFileDirPath);
-                                    //RSNYC
-                                    RsyncCopy rsyncCopy = new RsyncCopy(rsyncIp, rsyncPath, dumpFileDirPath, bwlimit, groupSeq);
-
-                                    boolean execProdure = false;
-                                    boolean rsyncStarted = false;
-                                    //덤프파일 이름
-                                    String dumpFileName = "prodExt_" + groupSeq;
-
-                                    //SKIP 여부에 따라 프로시저 호출
-                                    if(procedureSkip == false) {
-                                        execProdure = procedure.callSearchProcedure();
-                                    }
-                                    logger.info("execProdure : {}",execProdure);
-
-                                    //프로시저 결과 True, R 스킵X or 프로시저 스킵 and rsync 스킵X
-                                    if((execProdure && rsyncSkip == false) || (procedureSkip && rsyncSkip == false)) {
-                                        rsyncCopy.start();
-                                        Thread.sleep(3000);
-                                        rsyncStarted = rsyncCopy.copyAsync();
-                                    }
-                                    logger.info("rsyncStarted : {}" , rsyncStarted );
-                                    int fileCount = 0;
-                                    if(rsyncStarted || rsyncSkip) {
-
-                                        if(rsyncSkip) {
-                                            logger.info("rsyncSkip : {}" , rsyncSkip);
-
-                                            long count = 0;
-                                            if(Files.isDirectory(Paths.get(dumpFileDirPath))){
-                                                count = Files.walk(Paths.get(dumpFileDirPath)).filter(Files::isRegularFile).count();
-                                            }else if(Files.isRegularFile(Paths.get(dumpFileDirPath))){
-                                                count = 1;
-                                            }
-
-                                            if(count == 0){
-                                                throw new FileNotFoundException("파일을 찾을 수 없습니다. (filepath: " + dumpFileDirPath + "/)");
-                                            }
-                                        } else {
-                                            //파일이 있는지 1초마다 확인
-                                            while (!Utils.checkFile(dumpFileDirPath, dumpFileName)) {
-                                                if (fileCount == 10) break;
-                                                Thread.sleep(1000);
-                                                fileCount++;
-                                                logger.info("{} 파일 확인 count: {} / 10", dumpFileName, fileCount);
-                                            }
-
-                                            if (fileCount == 10) {
-                                                throw new FileNotFoundException("rsync 된 파일을 찾을 수 없습니다. (filepath: " + dumpFileDirPath + "/" + dumpFileName + ")");
-                                            }
-                                        }
-                                        //GroupSeq당 하나의 덤프파일이므로 경로+파일이름으로 인제스터 생성
-//                    path += "/"+dumpFileName;
-                                        logger.info("file Path - Name  : {} - {}", dumpFileDirPath, dumpFileName);
-                                        finalIngester = new ProcedureIngester(dumpFileDirPath, dumpFormat, encoding, 1000, limitSize);
-
-                                    }
-
-                                    Filter filter = (Filter) Utils.newInstance(filterClassName);
-
-                                    IndexService indexService = new IndexService(host, port, scheme, esUsername, esPassword, groupSeq);
-
-                                    if (threadSize > 1) {
-                                        indexService.indexParallel(finalIngester, index, bulkSize, filter, threadSize, job, pipeLine);
-                                    } else {
-                                        indexService.index(finalIngester, index, bulkSize, filter, job, pipeLine);
-                                    }
-
-                                } catch (InterruptedException | FileNotFoundException e) {
-                                    logger.error("", e);
-                                    Thread.currentThread().interrupt();
-                                    exceptions.add(e);
-                                } catch (StopSignalException e) {
-                                    logger.info("Stop Signal GroupSeq Wait: {}", groupSeq);
-                                    logger.error("", e);
-                                    exceptions.add(e);
-                                } catch (Exception e) {
-                                    logger.error("", e);
-                                    exceptions.add(e);
-                                } finally {
-                                    latch.countDown();
                                 }
-                            }).start();
-
+                                logger.info("[{}] autoDynamic >>> Open <<<", autoDynamicIndex);
+                                break;
+                            }
+                            Thread.sleep(60 * 1000);
+                        } catch (Exception e) {
+                            logger.error("", e);
+                            r --;
+                            if (r == 0) {
+                                logger.warn("max retry!!!!");
+                                break;
+                            } else {
+                                try {
+                                    Thread.sleep(1000);
+                                } catch (InterruptedException ignore) {}
+                            }
                         }
                     }
-                }
-
-                try {
-                    // 1초 대기
-                    Thread.sleep(1000);
-                    n++;
-                    if (n % 30 == 0) {
-                        logger.info("Wait Indexing.. jobId: {}, started GroupSeq Count: {}, groupseq numbers: {}", job.getId(), subStarted.size(), subStarted);
-                        n = 0;
-                    }
-                } catch (InterruptedException ignore){}
+                    logger.info("success check Thread terminate");
+                }).start();
             }
-
-            logger.info("GroupSeq All SubStart Started. jo {}, started GroupSeq Count: {}, groupseq numbers: {}", job.getId(), subStarted.size(), subStarted);
-
-            // 최대 3일동안 기다려본다.
-            if (!latch.await(3, TimeUnit.DAYS)) {
-                job.setStopSignal(true);
-            }
-
-            logger.info("finished. jobId: {}", job.getId());
-            if (exceptions.size() == 0) {
-                job.setStatus(STATUS.SUCCESS.name());
-            } else {
-                job.setStatus(STATUS.STOP.name());
-                job.setError(exceptions.toString());
-            }
-        } catch (Exception e) {
-            logger.error("", e);
-            job.setStatus(STATUS.STOP.name());
-            job.setError(e.getMessage());
         }
     }
 
-
-    public Set<Integer> parseGroupSeq(String groupSeq) {
-        Set<Integer> list = new LinkedHashSet<>();
-
-        if (groupSeq == null || "".equals(groupSeq)) {
-            return list;
+    public void updateQueueIndexerConsume(boolean dryRun, String queueIndexerUrl, String queueName, int consumeCount) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("queue", queueName);
+        body.put("size", consumeCount);
+        logger.info("QueueIndexUrl: {}, queue: {}, count: {}", queueIndexerUrl, queueName, consumeCount);
+        if (!dryRun) {
+            ResponseEntity<String> response = restTemplate.exchange(queueIndexerUrl,
+                    HttpMethod.PUT,
+                    new HttpEntity(body),
+                    String.class
+            );
+            logger.info("edit Consume Response: {}", response);
+        } else {
+            logger.info("[DRY_RUN] queue indexer request skip");
         }
-        String[] arr1 = groupSeq.split(",");
-        for (int i = 0; i < arr1.length; i++) {
-            String[] r = arr1[i].split("-");
-            if (r.length > 1) {
-                list.addAll(getRange(Integer.parseInt(r[0]), Integer.parseInt(r[1])));
-            } else {
-                list.add(Integer.parseInt(r[0]));
-            }
-        }
-        return list;
     }
-    public Set<Integer> getRange(int from, int to) {
-        Set<Integer> range = new LinkedHashSet<>();
-        for (int i = from; i <= to; i++) {
-            range.add(i);
-        }
-        return range;
-    }
+
 }
