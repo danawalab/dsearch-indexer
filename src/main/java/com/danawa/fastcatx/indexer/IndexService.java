@@ -433,10 +433,10 @@ public class IndexService {
                 }
 
                 Map<String, Object> record = ingester.next();
-
-                if(record.get("productCode").equals("6480235")
-                        || record.get("productCode").equals("12395636")
-                        || record.get("productCode").equals("5666113")) {
+                Integer productCode = (Integer) record.get("productCode");
+                if(productCode == 6480235
+                        || productCode == 12395636
+                        || productCode == 5666113) {
                     logger.info("record1 : {}" ,record.toString());
                 }
 
@@ -445,9 +445,9 @@ public class IndexService {
                     record = filter.filter(record);
                 }
 
-                if(record.get("productCode").equals("6480235")
-                        || record.get("productCode").equals("12395636")
-                        || record.get("productCode").equals("5666113")) {
+                if(productCode == 6480235
+                        || productCode == 12395636
+                        || productCode == 5666113) {
                     logger.info("record2 : {}" ,record.toString());
                 }
 
