@@ -270,7 +270,7 @@ public class JDBCIngester implements Ingester {
 
                             keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(decodedFromUtf8));
 //                            keyValueMap.put(columnName[i], str);
-                            escape.append(str + " / " + decodedFromEucKr + " / " + decodedFromUtf8 + " / " + StringEscapeUtils.unescapeHtml(decodedFromUtf8));
+                            escape.append(str + "\n" + decodedFromEucKr + "\n" + decodedFromUtf8 + "\n" + StringEscapeUtils.unescapeHtml(decodedFromUtf8) + "\n");
                         } else {
                             // 파싱할 수 없는 자료형 이거나 정말 NULL 값인 경우
                             keyValueMap.put(columnName[i], "");
@@ -316,7 +316,7 @@ public class JDBCIngester implements Ingester {
 
 //                                keyValueMap.put(columnName[i], sb.toString());
                                 keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(decodedFromUtf8));
-                                escape.append(str + " / " + decodedFromEucKr + " / " + decodedFromUtf8 + " / " + StringEscapeUtils.unescapeHtml(decodedFromUtf8));
+                                escape.append(str + "\n" + decodedFromEucKr + "\n" + decodedFromUtf8 + "\n" + StringEscapeUtils.unescapeHtml(decodedFromUtf8) + "\n");
                             }
                         }
 
