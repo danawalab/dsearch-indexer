@@ -242,6 +242,7 @@ public class JDBCIngester implements Ingester {
             while (r.next()) {
                 StringBuilder escape = new StringBuilder();
 
+
                 Map<String, Object> keyValueMap = new HashMap<String, Object>();
 
                 for (int i = 0; i < columnCount; i++) {
@@ -326,10 +327,10 @@ public class JDBCIngester implements Ingester {
                         }
                     }
                 }
-                Integer productCode = (Integer) keyValueMap.get("productCode");
-                if(productCode == 6480235
-                        || productCode == 12395636
-                        || productCode == 5666113){
+
+                if(keyValueMap.get("productCode").equals("6480235")
+                        || keyValueMap.get("productCode").equals("12395636")
+                        || keyValueMap.get("productCode").equals("5666113")){
                     logger.info("keyValueMap : {}", keyValueMap.toString());
                     logger.info("escape str : {}", escape.toString());
                 }
