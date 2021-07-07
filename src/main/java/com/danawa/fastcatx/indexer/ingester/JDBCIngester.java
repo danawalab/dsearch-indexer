@@ -269,9 +269,9 @@ public class JDBCIngester implements Ingester {
                             byte[] utf8StringBuffer = decodedFromEucKr.getBytes("utf-8");
                             String decodedFromUtf8 = new String(utf8StringBuffer, "utf-8");
 
-                            keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(decodedFromUtf8));
-//                            keyValueMap.put(columnName[i], str);
-                            escape.append(str + "\n" + decodedFromEucKr + "\n" + decodedFromUtf8 + "\n" + StringEscapeUtils.unescapeHtml(decodedFromUtf8) + "\n");
+//                            keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(decodedFromUtf8));
+                            keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(str));
+                            escape.append(str + "\n" + StringEscapeUtils.unescapeHtml(str) + "\n");
                         } else {
                             // 파싱할 수 없는 자료형 이거나 정말 NULL 값인 경우
                             keyValueMap.put(columnName[i], "");
@@ -316,8 +316,9 @@ public class JDBCIngester implements Ingester {
                                 String decodedFromUtf8 = new String(utf8StringBuffer, "utf-8");
 
 //                                keyValueMap.put(columnName[i], sb.toString());
-                                keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(decodedFromUtf8));
-                                escape.append(str + "\n" + decodedFromEucKr + "\n" + decodedFromUtf8 + "\n" + StringEscapeUtils.unescapeHtml(decodedFromUtf8) + "\n");
+                                keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(str));
+//                                keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(decodedFromUtf8));
+                                escape.append(str + "\n" + StringEscapeUtils.unescapeHtml(str) + "\n");
                             }
                         }
 
