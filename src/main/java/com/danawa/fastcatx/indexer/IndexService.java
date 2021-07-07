@@ -434,10 +434,21 @@ public class IndexService {
 
                 Map<String, Object> record = ingester.next();
 
-                //logger.info("record : {}" ,record.size());
+                if(record.get("productCode").equals("6480235")
+                        || record.get("productCode").equals("12395636")
+                        || record.get("productCode").equals("5666113")) {
+                    logger.info("record1 : {}" ,record.toString());
+                }
+
 
                 if (filter != null && record != null && record.size() > 0) {
                     record = filter.filter(record);
+                }
+
+                if(record.get("productCode").equals("6480235")
+                        || record.get("productCode").equals("12395636")
+                        || record.get("productCode").equals("5666113")) {
+                    logger.info("record2 : {}" ,record.toString());
                 }
 
                 if (record != null && record.size() > 0) {

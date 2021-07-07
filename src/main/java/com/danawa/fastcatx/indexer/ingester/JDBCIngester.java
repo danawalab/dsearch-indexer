@@ -240,6 +240,8 @@ public class JDBCIngester implements Ingester {
                 return;
             }
             while (r.next()) {
+                StringBuilder escape = new StringBuilder();
+
 
                 Map<String, Object> keyValueMap = new HashMap<String, Object>();
 
@@ -269,6 +271,7 @@ public class JDBCIngester implements Ingester {
 
                             keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(decodedFromUtf8));
 //                            keyValueMap.put(columnName[i], str);
+                            escape.append(str + " / " + decodedFromEucKr + " / " + decodedFromUtf8 + " / " + StringEscapeUtils.unescapeHtml(decodedFromUtf8));
                         } else {
                             // 파싱할 수 없는 자료형 이거나 정말 NULL 값인 경우
                             keyValueMap.put(columnName[i], "");
@@ -313,7 +316,8 @@ public class JDBCIngester implements Ingester {
                                 String decodedFromUtf8 = new String(utf8StringBuffer, "utf-8");
 
 //                                keyValueMap.put(columnName[i], sb.toString());
-                                    keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(decodedFromUtf8));
+                                keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(decodedFromUtf8));
+                                escape.append(str + " / " + decodedFromEucKr + " / " + decodedFromUtf8 + " / " + StringEscapeUtils.unescapeHtml(decodedFromUtf8));
                             }
                         }
 
@@ -323,6 +327,14 @@ public class JDBCIngester implements Ingester {
                         }
                     }
                 }
+
+                if(keyValueMap.get("productCode").equals("6480235")
+                        || keyValueMap.get("productCode").equals("12395636")
+                        || keyValueMap.get("productCode").equals("5666113")){
+                    logger.info("keyValueMap : {}", keyValueMap.toString());
+                    logger.info("escape str : {}", escape.toString());
+                }
+                escape.setLength(0);
 
                 dataSet[bulkCount] = keyValueMap;
                 bulkCount++;
