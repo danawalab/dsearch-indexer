@@ -299,10 +299,10 @@ public class JDBCIngester implements Ingester {
                                 sb = new StringBuilder();
                             }
                             file = readTmpClob(i, columnIdx, rsMeta, sb);
+                            logger.info("{} : {} : {} : {}", columnName[i], useBlobFile, sb.toString(), StringEscapeUtils.unescapeHtml(str));
                             if(useBlobFile) {
                                 keyValueMap.put(columnName[i], file);
                             } else {
-                                logger.info("{} : {} : {}", columnName[i], str, StringEscapeUtils.unescapeHtml(str));
                                 keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(str));
                             }
                         }
