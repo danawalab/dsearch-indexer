@@ -260,8 +260,8 @@ public class JDBCIngester implements Ingester {
                     if(lobType == null) {
                         str = r.getString(columnIdx);
 
+                        logger.info("{} : {} : {}", columnName[i], str, StringEscapeUtils.unescapeHtml(str));
                         if(str != null) {
-                            logger.info("{} : {} : {}", columnName[i], str, StringEscapeUtils.unescapeHtml(str));
                             keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(str));
                         } else {
                             // 파싱할 수 없는 자료형 이거나 정말 NULL 값인 경우
@@ -302,6 +302,7 @@ public class JDBCIngester implements Ingester {
                             if(useBlobFile) {
                                 keyValueMap.put(columnName[i], file);
                             } else {
+                                logger.info("{} : {} : {}", columnName[i], str, StringEscapeUtils.unescapeHtml(str));
                                 keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(str));
                             }
                         }
