@@ -261,6 +261,7 @@ public class JDBCIngester implements Ingester {
                         str = r.getString(columnIdx);
 
                         if(str != null) {
+                            logger.info("{} : {}", columnName[i], StringEscapeUtils.unescapeHtml(str));
                             keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(str));
                         } else {
                             // 파싱할 수 없는 자료형 이거나 정말 NULL 값인 경우
