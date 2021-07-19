@@ -260,7 +260,6 @@ public class JDBCIngester implements Ingester {
                     if(lobType == null) {
                         str = r.getString(columnIdx);
 
-                        logger.info("{} : {} : {}", columnName[i], str, StringEscapeUtils.unescapeHtml(str));
                         if(str != null) {
                             keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(str));
                         } else {
@@ -299,11 +298,10 @@ public class JDBCIngester implements Ingester {
                                 sb = new StringBuilder();
                             }
                             file = readTmpClob(i, columnIdx, rsMeta, sb);
-                            logger.info("{} : {} : {} : {}", columnName[i], useBlobFile, sb.toString(), StringEscapeUtils.unescapeHtml(str));
                             if(useBlobFile) {
                                 keyValueMap.put(columnName[i], file);
                             } else {
-                                keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(str));
+                                keyValueMap.put(columnName[i], StringEscapeUtils.unescapeHtml(sb.toString()));
                             }
                         }
 
